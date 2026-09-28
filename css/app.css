@@ -819,11 +819,14 @@ input[type="date"].input, input[type="datetime-local"].input { min-height: 52px;
   display: grid; place-items: center; padding: 18px; border-radius: 22px;
   background: radial-gradient(120% 80% at 50% 0%, #FFFFFF 0%, var(--surface-3) 70%);
 }
-.share-view__stage canvas {
-  height: min(52vh, 520px); width: auto; aspect-ratio: 9 / 16; border-radius: 18px;
+.share-view__stage img {
+  display: block; height: min(52vh, 520px); width: auto; max-width: 100%; aspect-ratio: 9 / 16; border-radius: 18px;
+  -webkit-touch-callout: default; user-select: auto;
   box-shadow: 0 22px 44px -22px rgba(22, 19, 15, 0.6), 0 0 0 1px rgba(22, 19, 15, 0.06);
   background: #F4EFE6;
 }
+.share-view__hint { display: none; margin-top: -6px; text-align: center; color: var(--ink-3); font-size: 13.5px; }
+@media (hover: none) { .share-view__hint { display: block; } }
 .picks { display: grid; gap: 8px; }
 .pick { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 16px; border: 1.5px solid var(--line-2); cursor: pointer; transition: border-color 0.2s, background-color 0.2s; }
 .pick:has(input:checked) { border-color: var(--ink); background: var(--surface-2); }

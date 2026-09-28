@@ -1465,7 +1465,8 @@
       body.innerHTML =
         sheetHead('Today’s card', v.day >= 1 ? 'Day ' + fmtNum(v.day) + ' · 1080×1920 · Instagram story' : '1080×1920 · Instagram story') +
         '<div class="share-view">' +
-        '<div class="share-view__stage"><canvas id="share-canvas" width="1080" height="1920" role="img" aria-label="Preview of today’s card"></canvas></div>' +
+        '<div class="share-view__stage"><img id="share-img" width="1080" height="1920" alt="Today’s card: Day ' + v.day + ', ' + v.total + ' of ' + state.settings.goal + ' decisions"></div>' +
+        '<p class="share-view__hint">Tip: long-press the card to save it straight to Photos.</p>' +
         (todays.length > 1
           ? '<div><p class="sheet__section-title"><span>Standout decision</span></p><div class="picks">' + todays.map(function (d) {
               return '<label class="pick" style="--c:' + catColor(v, d.categoryName) + '"><input type="radio" name="pick" value="' + d.id + '"' + (d.id === ui.cardPick ? ' checked' : '') + '><span><span class="pick__text">' + esc(d.text) + '</span><span class="pick__meta"><i></i>' + esc(d.categoryName) + ' · ' + esc(fmtTime(new Date(d.timestamp))) + (d.result ? ' · has result' : '') + '</span></span></label>';
@@ -1476,17 +1477,23 @@
         (canShare ? '<button type="button" class="btn btn--soft btn--lg" data-sheet="share" hidden>' + icon('share') + 'Share</button>' : '') +
         '</div></div>';
 
-      var canvas = $('#share-canvas', body);
+      // Render offscreen, then show the result as a real <img>: phones can long-press it to save.
+      var canvas = document.createElement('canvas');
+      var img = $('#share-img', body);
       function draw() {
         shareBlob = null;
         Card.ensureFonts().then(function () {
           Card.render(canvas, cardModel(derive(), ui.cardPick));
           canvas.toBlob(function (blob) {
+            if (!blob) return;
             shareBlob = blob;
+            if (img._url) URL.revokeObjectURL(img._url);
+            img._url = URL.createObjectURL(blob);
+            img.src = img._url;
             var shareBtn = $('[data-sheet="share"]', body);
-            if (shareBtn && blob) {
+            if (shareBtn) {
               var file = new File([blob], fileName(), { type: 'image/png' });
-              shareBtn.hidden = !navigator.canShare({ files: [file] });
+              try { shareBtn.hidden = !navigator.canShare({ files: [file] }); } catch (e) { shareBtn.hidden = true; }
             }
           }, 'image/png');
         });
@@ -1517,8 +1524,8 @@
   function downloadCard(canvas) {
     function go(blob) {
       if (!blob) return toast('Couldn’t create the image.', { tone: 'error' });
-      downloadBlob(blob, fileName());
-      toast('Card saved', { sub: fileName() });
+      var name = fileName();
+      downloadBlob(blob, name).then(function (ok) { if (ok) toast('Card saved', { sub: name }); });
     }
     if (shareBlob) go(shareBlob);
     else canvas.toBlob(go, 'image/png');
@@ -1534,6 +1541,7 @@
     });
   }
 
+  /** Hand a file to the user. Resolves true once the save has started. */
   function downloadBlob(blob, name) {
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
@@ -1543,6 +1551,7 @@
     a.click();
     a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    return Promise.resolve(true);
   }
 
   // ── Settings, backup, import ───────────────────────────────────────────
@@ -1554,9 +1563,11 @@
       data: { categories: state.categories, decisions: state.decisions, settings: state.settings }
     };
     var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    downloadBlob(blob, '1000-decisions-backup-' + ymd(new Date()) + '.json');
-    commit(function (s) { s.settings.lastBackupAt = new Date().toISOString(); });
-    toast('Backup exported', { sub: state.decisions.length + ' decisions · ' + state.categories.length + ' categories' });
+    downloadBlob(blob, '1000-decisions-backup-' + ymd(new Date()) + '.json').then(function (ok) {
+      if (!ok) return;
+      commit(function (s) { s.settings.lastBackupAt = new Date().toISOString(); });
+      toast('Backup exported', { sub: state.decisions.length + ' decisions · ' + state.categories.length + ' categories' });
+    });
   }
 
   function importData(file) {
