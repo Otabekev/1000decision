@@ -262,7 +262,7 @@ test('no horizontal overflow on a 320px phone; goal variants render', async () =
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.equal(overflow, 0);
   await page.evaluate(() => { const i = document.querySelector('input[name="goal"]'); i.value = '500'; i.dispatchEvent(new Event('change', { bubbles: true })); });
-  assert.equal(await page.locator('#dots circle').count(), 500);
+  assert.equal(await page.locator('#dots rect').count(), 500);
   await page.evaluate(() => { const i = document.querySelector('input[name="goal"]'); i.value = '5000'; i.dispatchEvent(new Event('change', { bubbles: true })); });
   assert.equal(await page.locator('#dots .progress').count(), 1);
   assert.deepEqual(errors, []);

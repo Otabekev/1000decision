@@ -13,25 +13,23 @@
   var PAD = 92;
   var INNER = W - PAD * 2;
 
-  var PAPER = '#F4EFE6';
-  var INK = '#16130F';
-  var INK2 = '#4A443C';
-  var INK3 = '#6E675D';
-  var LINE = '#E3DCCF';
-  var EMPTY_DOT = '#E4DDD1';
+  var PAPER = '#EFEEEA';
+  var INK = '#111315';
+  var INK2 = '#3E4247';
+  var INK3 = '#62676D';
+  var BRASS = '#8C6A24';
+  var EMPTY_DOT = '#D9D7D1';
 
   var UI = 'Archivo, system-ui, -apple-system, sans-serif';
-  var DISPLAY = '"Archivo Expanded", Archivo, system-ui, sans-serif';
-  var SERIF = '"Instrument Serif", Georgia, serif';
+  var DISPLAY = '"Archivo Condensed", "Arial Narrow", Archivo, system-ui, sans-serif';
 
   function ensureFonts() {
     if (!document.fonts || !document.fonts.load) return Promise.resolve();
     return Promise.all([
-      document.fonts.load('900 100px "Archivo Expanded"'),
-      document.fonts.load('700 100px "Archivo Expanded"'),
+      document.fonts.load('900 100px "Archivo Condensed"'),
+      document.fonts.load('700 100px "Archivo Condensed"'),
       document.fonts.load('700 30px Archivo'),
-      document.fonts.load('500 30px Archivo'),
-      document.fonts.load('italic 400 60px "Instrument Serif"')
+      document.fonts.load('500 30px Archivo')
     ]).catch(function () {});
   }
 
@@ -139,18 +137,15 @@
   }
 
   function drawLogo(ctx, x, y, size) {
-    roundRect(ctx, x, y, size, size, size * 0.28);
+    roundRect(ctx, x, y, size, size, size * 0.16);
     ctx.fillStyle = INK;
     ctx.fill();
-    var colors = ['#FFFFFF', '#FFFFFF', '#FFFFFF', '#FFFFFF', '#F5A524', '#FFFFFF', '#12883F', '#D92D20', 'rgba(255,255,255,0.28)'];
-    var p = size * 0.2;
+    var p = size * 0.22;
     var cell = (size - p * 2) / 3;
-    colors.forEach(function (c, i) {
-      ctx.beginPath();
-      ctx.arc(x + p + cell * (i % 3) + cell / 2, y + p + cell * Math.floor(i / 3) + cell / 2, cell * 0.3, 0, Math.PI * 2);
-      ctx.fillStyle = c;
-      ctx.fill();
-    });
+    for (var i = 0; i < 9; i++) {
+      ctx.fillStyle = i === 4 ? '#C9A45A' : 'rgba(255,255,255,0.92)';
+      ctx.fillRect(x + p + cell * (i % 3) + cell * 0.14, y + p + cell * Math.floor(i / 3) + cell * 0.14, cell * 0.72, cell * 0.72);
+    }
   }
 
   function drawStatusIcon(ctx, status, cx, cy, s, color) {
@@ -187,7 +182,7 @@
 
   function drawBar(ctx, b, x, y, w, h, maxTotal) {
     ctx.save();
-    var r = Math.min(18, h / 2);
+    var r = Math.min(6, h / 2);
     var fillW = maxTotal > 0 ? (b.total / maxTotal) * w : 0;
     if (b.total > 0) fillW = Math.max(fillW, h);
 
@@ -196,20 +191,18 @@
     ctx.fill();
 
     var size = Math.round(h * 0.46);
-    var nameFont = font(600, size, UI);
-    var countFont = font(800, Math.round(size * 1.02), DISPLAY);
+    var nameFont = font(700, size, UI);
+    var countFont = font(800, Math.round(size * 1.25), DISPLAY);
     var icon = h * 0.46;
     var textY = y + h / 2 + 1;
 
     function labels(color) {
       ctx.textBaseline = 'middle';
-      ctx.beginPath();
-      ctx.arc(x + h * 0.5, y + h / 2, h * 0.16, 0, Math.PI * 2);
+      var sq = h * 0.26;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(x + h * 0.5 - sq / 2 - 3, y + h / 2 - sq / 2 - 3, sq + 6, sq + 6);
       ctx.fillStyle = b.color;
-      ctx.fill();
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = '#FFFFFF';
-      ctx.stroke();
+      ctx.fillRect(x + h * 0.5 - sq / 2, y + h / 2 - sq / 2, sq, sq);
 
       ctx.fillStyle = color;
       ctx.font = nameFont;
@@ -248,7 +241,7 @@
     var tw = spacing ? measureSpaced(ctx, text, spacing) : ctx.measureText(text).width;
     var w = tw + padX * 2;
     var px = align === 'right' ? x - w : x;
-    roundRect(ctx, px, y, w, h, h / 2);
+    roundRect(ctx, px, y, w, h, 8);
     ctx.fillStyle = bg;
     ctx.fill();
     ctx.fillStyle = fg;
@@ -280,65 +273,62 @@
     // Paper background with a soft light falloff.
     ctx.fillStyle = PAPER;
     ctx.fillRect(0, 0, W, H);
-    var glow = ctx.createRadialGradient(W * 0.2, H * 0.1, 0, W * 0.2, H * 0.1, H * 0.85);
-    glow.addColorStop(0, 'rgba(255,255,255,0.85)');
-    glow.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, W, H);
+    // Thin ink frame, like a printed record.
+    ctx.strokeStyle = 'rgba(17,19,21,0.14)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(40, 40, W - 80, H - 80);
 
     // ── Brand row ──────────────────────────────────────────
     var y = 212;
     drawLogo(ctx, PAD, y - 33, 42);
     ctx.fillStyle = INK;
-    ctx.font = font(800, 24, DISPLAY);
-    spaced(ctx, '1000 DECISIONS', PAD + 58, y - 4, 3.2, 'left');
+    ctx.font = font(800, 30, DISPLAY);
+    spaced(ctx, '1000 DECISIONS', PAD + 58, y - 4, 4, 'left');
     ctx.fillStyle = INK3;
     ctx.font = font(600, 24, UI);
     spaced(ctx, m.dateLabel.toUpperCase(), W - PAD, y - 4, 3, 'right');
 
     // ── Day + total ───────────────────────────────────────
     y = 262;
-    ctx.font = font(800, 38, DISPLAY);
-    pill(ctx, m.day != null ? 'DAY ' + m.day : 'DAY 0', PAD, y, 70, INK, '#FFFFFF', 'left', 3.5);
+    ctx.font = font(800, 46, DISPLAY);
+    pill(ctx, m.day != null ? 'DAY ' + m.day : 'DAY 0', PAD, y, 70, INK, '#FFFFFF', 'left', 5);
     if (m.todayCount > 0) {
-      ctx.font = font(700, 30, UI);
-      pill(ctx, '+' + m.todayCount + ' today', W - PAD, y, 70, 'rgba(18,136,63,0.12)', '#0B6B30', 'right');
+      ctx.font = font(800, 40, DISPLAY);
+      pill(ctx, '+' + m.todayCount + ' TODAY', W - PAD, y, 70, 'rgba(140,106,36,0.14)', BRASS, 'right', 3);
     }
 
     var totalText = fmt(m.total);
     var goalText = '/' + fmt(m.goal);
-    var bigSize = 232;
-    var goalSize = 88;
+    var bigSize = 300;
+    var goalSize = 110;
     ctx.font = font(900, bigSize, DISPLAY);
     var tW = ctx.measureText(totalText).width;
     ctx.font = font(700, goalSize, DISPLAY);
     var gW = ctx.measureText(goalText).width;
     if (tW + gW + 18 > INNER + 6) bigSize = Math.floor(bigSize * (INNER + 6 - gW - 18) / tW);
-    y = 530;
+    y = 570;
     ctx.fillStyle = INK;
     ctx.font = font(900, bigSize, DISPLAY);
     ctx.fillText(totalText, PAD - 6, y);
     tW = ctx.measureText(totalText).width;
-    ctx.fillStyle = '#A39B8F';
+    ctx.fillStyle = '#969A9F';
     ctx.font = font(700, goalSize, DISPLAY);
     ctx.fillText(goalText, PAD - 6 + tW + 14, y);
 
     ctx.fillStyle = INK3;
-    ctx.font = font(600, 29, UI);
+    ctx.font = font(700, 25, UI);
     var pct = m.goal ? Math.min(100, Math.floor((m.total / m.goal) * 100)) : 0;
-    ctx.fillText('decisions made  ·  ' + pct + '% of the way', PAD, y + 54);
+    spaced(ctx, 'DECISIONS MADE  ·  ' + pct + '% COMPLETE', PAD, y + 50, 3, 'left');
 
-    // ── 1000-dot grid ─────────────────────────────────────
-    y = 626;
+    // ── 1000-square grid ──────────────────────────────────
+    y = 660;
     var shown = Math.min(m.goal, 1000);
     var grid = dotGrid(shown, INNER, 22);
-    var dotR = grid.pitch * 0.34;
+    var sq = grid.pitch * 0.72;
     for (var i = 0; i < shown; i++) {
       var p = grid.position(i);
-      ctx.beginPath();
-      ctx.arc(PAD + p.x + grid.pitch / 2, y + p.y + grid.pitch / 2, dotR, 0, Math.PI * 2);
       ctx.fillStyle = i < m.dots.length ? m.dots[i] : EMPTY_DOT;
-      ctx.fill();
+      ctx.fillRect(PAD + p.x + (grid.pitch - sq) / 2, y + p.y + (grid.pitch - sq) / 2, sq, sq);
     }
     y += grid.height;
 
@@ -349,21 +339,19 @@
     var barH = bars.length ? Math.min(52, (areaH - gapB * (bars.length - 1)) / bars.length) : 0;
     var maxTotal = bars.reduce(function (a, b) { return Math.max(a, b.total); }, 0);
 
-    y += 64;
+    y += 60;
     ctx.fillStyle = INK3;
     ctx.font = font(700, 23, UI);
     spaced(ctx, 'BALANCE · 7 DAYS', PAD, y, 3.2, 'left');
 
-    var legend = [['#12883F', 'Balanced'], ['#F5A524', 'Over-invested'], ['#D92D20', 'Neglected']];
+    var legend = [['#2E7D4F', 'Balanced'], ['#C8891B', 'Over-invested'], ['#B42318', 'Neglected']];
     ctx.font = font(600, 23, UI);
     var lw = legend.reduce(function (a, l) { return a + 16 + 8 + ctx.measureText(l[1]).width; }, 0) + 22 * (legend.length - 1);
     var lx = W - PAD - lw;
     ctx.textBaseline = 'middle';
     legend.forEach(function (l) {
-      ctx.beginPath();
-      ctx.arc(lx + 8, y - 8, 8, 0, Math.PI * 2);
       ctx.fillStyle = l[0];
-      ctx.fill();
+      ctx.fillRect(lx, y - 16, 16, 16);
       ctx.fillStyle = INK2;
       ctx.fillText(l[1], lx + 24, y - 7);
       lx += 24 + ctx.measureText(l[1]).width + 22;
@@ -388,10 +376,12 @@
     }
 
     // ── Standout decision ─────────────────────────────────
-    y = Math.max(by + 58, 1400);
+    y = Math.max(by + 56, 1400);
+    ctx.fillStyle = INK;
+    ctx.fillRect(PAD, y - 50, 60, 4);
     ctx.fillStyle = INK3;
     ctx.font = font(700, 23, UI);
-    spaced(ctx, 'TODAY’S STANDOUT', PAD, y, 3.2, 'left');
+    spaced(ctx, 'TODAY’S DECISION', PAD, y, 3.2, 'left');
 
     var s = m.standout;
     if (s) {
@@ -401,39 +391,37 @@
       if (chip !== s.categoryName) chip = chip.trim() + '…';
       var cw = ctx.measureText(chip).width + 62;
       ctx.save();
-      roundRect(ctx, W - PAD - cw, y - 32, cw, 44, 22);
+      roundRect(ctx, W - PAD - cw, y - 32, cw, 44, 6);
       ctx.fillStyle = '#FFFFFF';
       ctx.fill();
-      ctx.beginPath();
-      ctx.arc(W - PAD - cw + 23, y - 10, 8, 0, Math.PI * 2);
       ctx.fillStyle = s.color;
-      ctx.fill();
+      ctx.fillRect(W - PAD - cw + 16, y - 17, 14, 14);
       ctx.fillStyle = INK;
       ctx.textBaseline = 'middle';
       ctx.fillText(chip, W - PAD - cw + 40, y - 9);
       ctx.restore();
 
       var hasResult = !!(s.result && s.result.trim());
-      var quote = '“' + s.text.trim() + '”';
-      var qSize = 64;
+      var quote = s.text.trim().toUpperCase();
+      var qSize = 76;
       var maxLines = hasResult ? 2 : 3;
-      ctx.font = 'italic 400 ' + qSize + 'px ' + SERIF;
+      ctx.font = font(800, qSize, DISPLAY);
       var qLines = wrap(ctx, quote, INNER, maxLines);
       if (qLines.length === maxLines && qLines[maxLines - 1].slice(-1) === '…') {
-        qSize = 56;
-        ctx.font = 'italic 400 ' + qSize + 'px ' + SERIF;
+        qSize = 64;
+        ctx.font = font(800, qSize, DISPLAY);
         qLines = wrap(ctx, quote, INNER, maxLines);
       }
       var qy = y + 30 + qSize * 0.82;
       ctx.fillStyle = INK;
       qLines.forEach(function (line, i) {
-        ctx.fillText(line, PAD - 4, qy + i * qSize * 1.02);
+        ctx.fillText(line, PAD - 2, qy + i * qSize * 0.98);
       });
-      var ry = qy + (qLines.length - 1) * qSize * 1.02 + 60;
+      var ry = qy + (qLines.length - 1) * qSize * 0.98 + 58;
       if (hasResult) {
         ctx.font = font(500, 32, UI);
         var rLines = wrap(ctx, s.result.trim(), INNER - 52, 2);
-        ctx.fillStyle = '#0B6B30';
+        ctx.fillStyle = BRASS;
         ctx.font = font(800, 32, UI);
         ctx.fillText('→', PAD, ry);
         ctx.fillStyle = INK2;
@@ -444,8 +432,8 @@
       }
     } else {
       ctx.fillStyle = INK3;
-      ctx.font = 'italic 400 58px ' + SERIF;
-      ctx.fillText('Today’s decision is still being made.', PAD - 4, y + 88);
+      ctx.font = font(800, 60, DISPLAY);
+      ctx.fillText('TODAY’S DECISION IS STILL BEING MADE.', PAD - 2, y + 88);
     }
 
     // ── Footer ────────────────────────────────────────────

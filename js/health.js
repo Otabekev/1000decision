@@ -29,11 +29,11 @@
 
   // Status colors. Health always wins over a category's own accent color.
   var COLORS = {
-    balanced: { fill: '#12883F', track: '#E2F3E7', onFill: '#FFFFFF', ink: '#0B6B30' },
-    over: { fill: '#F5A524', track: '#FDF0D8', onFill: '#16130F', ink: '#8A5A00' },
-    neglected: { fill: '#D92D20', track: '#FCE8E6', onFill: '#FFFFFF', ink: '#B42318' },
-    neglectedDeep: { fill: '#8C1313', track: '#F6CFCB', onFill: '#FFFFFF', ink: '#8C1313' },
-    idle: { fill: '#A7ACB4', track: '#EEF0F2', onFill: '#16130F', ink: '#5C636E' }
+    balanced: { fill: '#2E7D4F', track: '#E3EDE6', onFill: '#FFFFFF', ink: '#27704A' },
+    over: { fill: '#C8891B', track: '#F4EAD6', onFill: '#111315', ink: '#8C6A24' },
+    neglected: { fill: '#B42318', track: '#F4E1DE', onFill: '#FFFFFF', ink: '#B42318' },
+    neglectedDeep: { fill: '#7A1712', track: '#EBCBC6', onFill: '#FFFFFF', ink: '#7A1712' },
+    idle: { fill: '#8E949B', track: '#E9EAEB', onFill: '#111315', ink: '#52565C' }
   };
 
   function startOfDay(date) {

@@ -3,14 +3,15 @@
 A personal daily accountability tool. You log small acts of discipline ("decisions") toward a goal of 1000. Every decision belongs to a priority-ranked category, and the app shows, by color, whether each priority is getting the **right amount** of attention. It flags when your top priority is being neglected while easy categories get farmed.
 
 - **One page. No backend, no login.** Everything is stored in `localStorage` on your device.
-- **Fast.** Plain HTML, CSS and JavaScript with no framework and no build step. It opens instantly and works offline.
+- **Runs locally.** Plain HTML, CSS and JavaScript: no framework, no build step, no server. Double-click to open; works offline.
 - **Under 30 seconds a day.** Tap **+**, tap a category, type what you did, press Enter twice.
 
 ## What's on the page
 
 | Section | What it does |
 | --- | --- |
-| **Summary** | `X / 1000` in huge type, **Day N**, and a 1000-dot grid. Each dot is one decision, colored by its category. |
+| **Summary** | `X / 1000` in huge type, **Day N**, a 1000-square grid (one square per decision, today's in brass), and stats: today, last 7 days, active days / consistency, daily average, projected finish date. |
+| **Statistics** | Decisions per day for 30 days (stacked by category, with the 7-day average) and each priority's actual share vs. target. |
 | **Balance** | One bar per category. Length = all-time decisions. Color = health over the last 7 days. Tap a bar for a detail popup: totals, a 7-day chart, target vs. actual share, the status in plain words, and recent decisions. |
 | **Priorities** | Drag to reorder, or use the arrow keys on the handle. Reordering instantly changes targets and recomputes health. Edit a category to rename, recolor or delete it; **New category** creates one at any position. |
 | **+ button** | Pick a category, type "what I did", optionally "what happened as a result", then save. You get an Undo toast. |
@@ -37,20 +38,19 @@ no decisions in the last 7 days → every bar is grey
 
 "Last 7 days" means today plus the six calendar days before it, in local time. **Day N** counts the start date as Day 1.
 
-## Run it
+## Run it on your computer (free, no internet, no hosting)
 
-Open `index.html` in a browser, or serve the folder:
+This is a website that runs straight from a folder on your computer. There is no server and nothing to deploy or pay for.
 
-```bash
-npm start            # serves on http://localhost:8080
-```
+1. On GitHub, click **Code → Download ZIP**, then unzip it somewhere permanent, e.g. `Documents\1000 Decisions`.
+2. **Windows:** double-click **`Open 1000 Decisions.bat`** (or just `index.html`).
+   **Mac:** double-click **`Open 1000 Decisions (Mac).command`** (first time: right-click → Open).
+3. Optional, Windows: double-click **`Turn on auto-start (Windows).bat`** and it opens every time you start your PC. `Turn off auto-start (Windows).bat` undoes it.
+   Mac: System Settings → General → Login Items → **+** → pick `Open 1000 Decisions (Mac).command`.
 
-### Put it on your phone
+> **Your data is saved inside the browser** (e.g. Chrome or Edge) on this computer. Always open it with the same browser, and don't clear that browser's site data. Use **Settings → Export JSON** now and then as a backup; **Import JSON** restores it (also how you move to a new computer).
 
-1. Host the folder anywhere static. GitHub Pages is easiest: **Settings → Pages → Deploy from a branch**, pick the branch and `/ (root)`.
-2. Open the URL on your phone, then **Share → Add to Home Screen** (iOS) or **Install app** (Android). It then launches full screen and works offline.
-
-> **Your data lives only in that browser.** On iPhone, the home-screen app and Safari keep separate storage, so pick one and stick with it. Use **Settings → Export JSON** now and then, and before switching phones. **Import JSON** restores a backup.
+Developers can also serve it: `npm start` (http://localhost:8080).
 
 ## Data format
 
@@ -77,7 +77,8 @@ js/card.js              Instagram card renderer (Canvas 2D, no dependencies)
 js/app.js               state, rendering, interactions
 sw.js                   offline cache (bump VERSION when shipping changes)
 manifest.webmanifest    install metadata
-fonts/                  Archivo, Archivo Expanded, Instrument Serif Italic (OFL, self-hosted)
+css/fonts.css           fonts embedded as data URIs (so it works from file://)
+fonts/                  Archivo + Archivo Condensed source files (OFL)
 icons/                  app icons
 tests/                  unit tests + Playwright end-to-end tests
 ```
@@ -92,4 +93,4 @@ npm run test:e2e     # drives the real page in Chromium
 
 ## Credits
 
-Fonts: [Archivo](https://github.com/Omnibus-Type/Archivo) and [Instrument Serif](https://github.com/Instrument/instrument-serif), both under the SIL Open Font License (see `fonts/`). They are subset to Latin, and Archivo is pinned to two widths.
+Font: [Archivo](https://github.com/Omnibus-Type/Archivo), SIL Open Font License (see `fonts/`), subset to Latin and pinned to a regular and a condensed width.

@@ -15,8 +15,11 @@
 
   var STORAGE_KEY = 'thousand-decisions:v1';
   var LOCALE = 'en-US';
-  var PALETTE = ['#2F6BFF', '#8B3DFF', '#0FA3A3', '#E0399E', '#FF7A1A', '#5B4CF0', '#16A5D8', '#9A6B3F', '#F0487A', '#7CB518', '#56657A', '#D4A017'];
-  var SUGGESTED = ['Gym', 'Money', 'Peace', 'Focus', 'Health', 'Learning', 'Family', 'Sleep'];
+  // Category identity colors: muted and distinct from the health colors.
+  var PALETTE = ['#2F5D8A', '#6B7A3A', '#9A6A3A', '#4E5A67', '#3D7F7A', '#6A4C7A', '#243B5A', '#8A7A55', '#50663F', '#7A5C48', '#5B6F86', '#2F3437'];
+  var SUGGESTED = ['Gym', 'Money', 'Deep work', 'Health', 'Learning', 'Family', 'Sleep', 'Peace'];
+  var DOT_INK = '#1C1F22';
+  var DOT_TODAY = '#B08D3C';
   var HISTORY_PAGE = 20;
   var MAX_NAME = 24;
   var MAX_TEXT = 140;
@@ -314,6 +317,7 @@
     renderHero(v, opts);
     renderBalance(v, opts);
     renderPriorities(v);
+    renderStats(v);
     renderHistory(v, opts);
     renderSettings();
     scheduleThumb();
@@ -326,18 +330,6 @@
     if (v.day >= 1) dayPill.textContent = 'Day ' + fmtNum(v.day);
     else dayPill.textContent = 'Starts in ' + (1 - v.day) + ' ' + plural(1 - v.day, 'day');
     $('#hero-date').textContent = v.now.toLocaleDateString(LOCALE, { weekday: 'long', month: 'long', day: 'numeric' });
-
-    var chip = $('#today-chip');
-    if (v.today > 0) {
-      var txt = '+' + v.today + ' today';
-      if (chip.textContent !== txt) {
-        chip.textContent = txt;
-        chip.hidden = false;
-        chip.style.animation = 'none';
-        void chip.offsetWidth;
-        chip.style.animation = '';
-      }
-    } else chip.hidden = true;
 
     animateNumber($('#hero-total'), v.total);
     $('#hero-goal').textContent = '/' + fmtNum(goal);
@@ -352,6 +344,134 @@
     $('#topbar-day').textContent = v.day >= 1 ? 'Day ' + fmtNum(v.day) : 'Soon';
 
     renderDots(v, opts);
+    renderKpis(v);
+  }
+
+  /** Per-day counts for the last `n` days (oldest first), optionally split by category. */
+  function dailySeries(v, n) {
+    var todayIdx = dayIndex(v.now);
+    var days = [];
+    for (var i = n - 1; i >= 0; i--) {
+      var d = new Date(v.now);
+      d.setHours(12, 0, 0, 0);
+      d.setDate(d.getDate() - i);
+      days.push({ date: d, total: 0, by: Object.create(null) });
+    }
+    state.decisions.forEach(function (dec) {
+      var slot = n - 1 - (todayIdx - dayIndex(new Date(dec.timestamp)));
+      if (slot < 0 || slot >= n) return;
+      days[slot].total++;
+      days[slot].by[dec.categoryName] = (days[slot].by[dec.categoryName] || 0) + 1;
+    });
+    return days;
+  }
+
+  function renderKpis(v) {
+    var goal = state.settings.goal;
+    var elapsed = Math.max(1, v.day);
+    var week = dailySeries(v, 7);
+    var active = Object.create(null);
+    var startIdx = dayIndex(parseYmd(state.settings.startDate) || v.now);
+    state.decisions.forEach(function (d) {
+      var k = dayIndex(new Date(d.timestamp));
+      if (k >= startIdx) active[k] = true;
+    });
+    var activeDays = Object.keys(active).length;
+    var avg = v.total / elapsed;
+    var pace7 = v.health.total7 / 7;
+    var remaining = Math.max(0, goal - v.total);
+    var finish;
+    if (!remaining) finish = { value: 'Done', note: 'Goal reached' };
+    else if (!pace7) finish = { value: '—', note: 'Log decisions this week to get a projection' };
+    else {
+      var daysLeft = Math.ceil(remaining / pace7);
+      var date = new Date(v.now);
+      date.setDate(date.getDate() + daysLeft);
+      finish = {
+        value: date.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric', year: date.getFullYear() !== v.now.getFullYear() ? 'numeric' : undefined }),
+        note: daysLeft + ' days at your 7-day pace of ' + pace7.toFixed(1) + ' a day'
+      };
+    }
+    var maxWeek = Math.max(1, week.reduce(function (m, d) { return Math.max(m, d.total); }, 0));
+    var spark = week.map(function (d, i) {
+      return '<i class="' + (d.total ? (i === 6 ? 't' : '') : 'z') + '" style="height:' + Math.max(8, (d.total / maxWeek) * 100).toFixed(0) + '%" title="' + d.total + '"></i>';
+    }).join('');
+    var todayNote = v.today >= Math.ceil(pace7 || 1) ? '<p class="kpi__note is-good">On pace</p>' : '<p class="kpi__note' + (v.today ? '' : ' is-bad') + '">' + (v.today ? 'Pace is ' + pace7.toFixed(1) + ' a day' : 'Nothing logged yet') + '</p>';
+    $('#kpis').innerHTML =
+      '<div class="kpi"><dt>Today</dt><dd>' + v.today + '</dd>' + todayNote + '</div>' +
+      '<div class="kpi"><dt>Last 7 days</dt><dd>' + v.health.total7 + '</dd><div class="kpi__spark" aria-hidden="true">' + spark + '</div></div>' +
+      '<div class="kpi"><dt>Active days</dt><dd>' + activeDays + '<small>of ' + Math.max(0, v.day) + '</small></dd><p class="kpi__note">' + (v.day > 0 ? Math.round((activeDays / elapsed) * 100) + '% consistency' : 'Starts soon') + '</p></div>' +
+      '<div class="kpi"><dt>Daily average</dt><dd>' + avg.toFixed(1) + '</dd><p class="kpi__note">since Day 1</p></div>' +
+      '<div class="kpi kpi--wide"><dt>Projected finish</dt><dd>' + esc(finish.value) + '</dd><p class="kpi__note">' + esc(finish.note) + '</p></div>';
+  }
+
+  // ── Statistics ─────────────────────────────────────────────────────────
+  function niceMax(n) {
+    if (n <= 5) return Math.max(1, n);
+    var steps = [5, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100];
+    for (var i = 0; i < steps.length; i++) if (steps[i] >= n) return steps[i];
+    return Math.ceil(n / 50) * 50;
+  }
+
+  function renderStats(v) {
+    var daily = $('#chart-daily');
+    var share = $('#chart-share');
+    if (!state.categories.length || !v.total) {
+      daily.innerHTML = '<p class="chart-empty">Your daily record appears here after your first decision.</p>';
+      share.innerHTML = '<p class="chart-empty">Shows each priority’s share of the week against its target.</p>';
+      return;
+    }
+    // Stacked columns, last 30 days.
+    var days = dailySeries(v, 30);
+    var W = 640, CH = 220, L = 30, R = 8, T = 10, B = 26;
+    var max = niceMax(days.reduce(function (m, d) { return Math.max(m, d.total); }, 0));
+    var cw = (W - L - R) / days.length;
+    var bw = Math.max(4, cw * 0.66);
+    function y(val) { return T + (CH - T - B) * (1 - val / max); }
+    var out = [];
+    [0, 0.5, 1].forEach(function (f) {
+      var val = Math.round(max * f);
+      out.push('<line class="' + (f ? 'grid' : 'axis') + '" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(val).toFixed(1) + '" y2="' + y(val).toFixed(1) + '"/>');
+      out.push('<text x="' + (L - 8) + '" y="' + (y(val) + 4).toFixed(1) + '" text-anchor="end">' + val + '</text>');
+    });
+    days.forEach(function (d, i) {
+      var x = L + i * cw + (cw - bw) / 2;
+      var acc = 0;
+      state.categories.forEach(function (c) {
+        var n = d.by[c.name] || 0;
+        if (!n) return;
+        var y1 = y(acc + n), y0 = y(acc);
+        out.push('<rect x="' + x.toFixed(1) + '" y="' + y1.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(0, y0 - y1 - 1).toFixed(1) + '" fill="' + c.color + '"><title>' + esc(c.name) + ': ' + n + '</title></rect>');
+        acc += n;
+      });
+      var isToday = i === days.length - 1;
+      if (i % 5 === 4 || isToday || i === 0) {
+        out.push('<text x="' + (x + bw / 2).toFixed(1) + '" y="' + (CH - 8) + '" text-anchor="middle"' + (isToday ? ' style="fill:var(--ink);font-weight:700"' : '') + '>' + (isToday ? 'Today' : d.date.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' })) + '</text>');
+      }
+    });
+    var avg7 = v.health.total7 / 7;
+    if (avg7 > 0) {
+      out.push('<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(avg7).toFixed(1) + '" y2="' + y(avg7).toFixed(1) + '" stroke="#B08D3C" stroke-width="2" stroke-dasharray="6 4"/>');
+      out.push('<text x="' + (W - R) + '" y="' + (y(avg7) - 6).toFixed(1) + '" text-anchor="end" style="fill:#8C6A24;font-weight:700">7-day avg ' + avg7.toFixed(1) + '</text>');
+    }
+    daily.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + CH + '" role="img" aria-label="Decisions per day for the last 30 days, stacked by category">' + out.join('') + '</svg>' +
+      '<div class="chart__legend">' + state.categories.map(function (c) { return '<span><i style="background:' + c.color + '"></i>' + esc(c.name) + '</span>'; }).join('') + '</div>';
+
+    // Attention vs target.
+    if (!v.health.total7) {
+      share.innerHTML = '<p class="chart-empty">No decisions in the last 7 days. Every priority is on hold.</p>';
+      return;
+    }
+    var top = Math.min(1, Math.max.apply(null, v.health.list.map(function (h) { return Math.max(h.actualShare, h.targetShare * H.BAND_HIGH); })) * 1.1);
+    share.innerHTML = '<div class="share-rows">' + state.categories.map(function (c) {
+      var h = v.health.byName[c.name];
+      var col = H.colorsFor(h);
+      return '<div class="share-row" style="--c:' + c.color + ';--fill:' + col.fill + '">' +
+        '<div class="share-row__head"><span><i></i><b>' + esc(c.name) + '</b></span><em>' + pct(h.actualShare) + ' <span style="color:var(--ink-4);font-weight:600">/ ' + pct(h.targetShare) + '</span></em></div>' +
+        '<div class="share-row__track"><div class="share-row__fill" style="width:' + ((h.actualShare / top) * 100).toFixed(1) + '%"></div><div class="share-row__target" style="left:' + ((h.targetShare / top) * 100).toFixed(1) + '%"></div></div>' +
+        '</div>';
+    }).join('') + '</div>' +
+      '<div class="chart__legend"><span><i style="background:var(--ink-2)"></i>Actual share (colored by health)</span><span><i class="target" style="width:2px;height:12px;border:0;background:var(--ink)"></i>Target</span></div>';
   }
 
   function renderDots(v, opts) {
@@ -365,32 +485,26 @@
     }
     var width = 548;
     var grid = Card.dotGrid(goal, width, 12);
-    var r = (grid.pitch * 0.34).toFixed(2);
+    var r = +(grid.pitch * 0.36).toFixed(2);
     var todayIdx = dayIndex(v.now);
     var n = Math.min(v.total, goal);
     var out = [];
     for (var i = 0; i < goal; i++) {
       var p = grid.position(i);
-      var cx = (p.x + grid.pitch / 2).toFixed(2);
-      var cy = (p.y + grid.pitch / 2).toFixed(2);
+      var cx = +(p.x + grid.pitch / 2).toFixed(2);
+      var cy = +(p.y + grid.pitch / 2).toFixed(2);
       if (i < n) {
         var d = state.decisions[i];
         var cls = [];
         if (opts.justAdded && d.id === opts.justAdded) cls.push('pop');
-        out.push('<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + catColor(v, d.categoryName) + '"' + (cls.length ? ' class="' + cls.join(' ') + '"' : '') + (dayIndex(new Date(d.timestamp)) === todayIdx ? ' data-today="1"' : '') + '/>');
+        var isToday = dayIndex(new Date(d.timestamp)) === todayIdx;
+        out.push('<rect x="' + (cx - r) + '" y="' + (cy - r) + '" width="' + (2 * r) + '" height="' + (2 * r) + '" rx="0.6" fill="' + (isToday ? DOT_TODAY : DOT_INK) + '"' + (cls.length ? ' class="' + cls.join(' ') + '"' : '') + '/>');
       } else {
-        out.push('<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" class="e"/>');
+        out.push('<rect x="' + (cx - r) + '" y="' + (cy - r) + '" width="' + (2 * r) + '" height="' + (2 * r) + '" rx="0.6" class="e"/>');
       }
     }
-    host.innerHTML = '<svg viewBox="0 0 ' + width + ' ' + grid.height.toFixed(2) + '" role="img" aria-label="' + n + ' of ' + goal + ' dots filled, one per decision, colored by category">' + out.join('') + '</svg>';
-
-    if (state.categories.length && v.total) {
-      legend.innerHTML = state.categories.slice(0, 8).map(function (c) {
-        return '<span><i style="background:' + c.color + '"></i>' + esc(c.name) + '</span>';
-      }).join('') + '<span class="note">1 dot = 1 decision</span>';
-    } else {
-      legend.innerHTML = '<span class="note">Every decision fills one dot, in its category’s color.</span>';
-    }
+    host.innerHTML = '<svg viewBox="0 0 ' + width + ' ' + grid.height.toFixed(2) + '" role="img" aria-label="' + n + ' of ' + goal + ' squares filled, one per decision">' + out.join('') + '</svg>';
+    legend.innerHTML = '<span><i style="background:' + DOT_INK + '"></i>Logged</span><span><i style="background:' + DOT_TODAY + '"></i>Today</span><span>1 square = 1 decision · 100 per block</span>';
   }
 
   function animateNumber(el, to) {
@@ -420,7 +534,7 @@
       return {
         tone: 'idle', icon: 'clock',
         title: 'Nothing logged in the last 7 days',
-        text: 'Every bar stays grey until your next decision. One small act brings them back to life.'
+        text: 'Every bar stays grey until your next decision. Log one and the record starts again.'
       };
     }
     var neglected = list.filter(function (h) { return h.status === 'neglected'; }).sort(function (a, b) { return a.priorityRank - b.priorityRank; });
@@ -454,7 +568,7 @@
     return {
       tone: 'balanced', icon: 'check',
       title: 'Every priority is balanced',
-      text: 'Your attention matches your priorities this week. This is what discipline looks like.'
+      text: 'Your attention matches your priorities this week. Hold the line.'
     };
   }
 
@@ -478,7 +592,7 @@
       bars.innerHTML =
         '<div class="onboard">' +
         '<p class="onboard__title">Start with your priorities</p>' +
-        '<p class="onboard__text">Pick the areas where you want to make better decisions. Tap them in order of importance: the first one becomes #1.</p>' +
+        '<p class="onboard__text">Choose the areas of your life you intend to take control of. Add them in order of importance: the first becomes your #1 priority.</p>' +
         '<div class="suggest">' +
         SUGGESTED.map(function (name, i) {
           return '<button type="button" data-action="quick-category" data-name="' + esc(name) + '" style="--c:' + PALETTE[i % PALETTE.length] + '"><i></i>' + esc(name) + '</button>';
@@ -629,7 +743,7 @@
     if (!items.length) {
       timeline.innerHTML = '<div class="empty"><div class="empty__art" aria-hidden="true">' + new Array(16).join('<i></i>') + '</div><strong>' +
         (v.total ? 'Nothing in this category yet' : 'Your first decision will appear here') + '</strong><span>' +
-        (v.total ? 'Log one with the + button.' : 'Tap + to log a small act of discipline. It takes ten seconds.') + '</span></div>';
+        (v.total ? 'Log one with Log decision.' : 'Press N or click Log decision. It takes ten seconds.') + '</span></div>';
       more.hidden = true;
       return;
     }
@@ -722,7 +836,7 @@
       total: v.total,
       goal: state.settings.goal,
       todayCount: v.today,
-      dots: state.decisions.slice(0, Math.min(state.settings.goal, 1000)).map(function (d) { return catColor(v, d.categoryName); }),
+      dots: state.decisions.slice(0, Math.min(state.settings.goal, 1000)).map(function (d) { return dayIndex(new Date(d.timestamp)) === todayIdx ? DOT_TODAY : DOT_INK; }),
       bars: state.categories.map(function (c) {
         var h = v.health.byName[c.name];
         var col = H.colorsFor(h);
@@ -978,7 +1092,7 @@
       state.categories.map(function (c, i) {
         var h = v.health.byName[c.name];
         var col = H.colorsFor(h);
-        var tag = needs && needs.name === c.name ? '<span class="tile__tag">Needs you</span>' : '';
+        var tag = needs && needs.name === c.name ? '<span class="tile__tag">Behind</span>' : '';
         return '<button type="button" role="listitem" class="tile" data-pick="' + esc(c.name) + '" style="--c:' + c.color + ';--h:' + col.fill + ';--i:' + i + '" aria-label="' + esc(c.name + ', priority ' + c.priorityRank + '. ' + H.describe(h).short) + '">' +
           tag +
           '<span class="tile__top"><span class="tile__dot"></span><span class="tile__rank">#' + c.priorityRank + '</span><span class="tile__health"></span></span>' +
@@ -1202,7 +1316,7 @@
       '<p class="detail__label">' + esc(d.label) + '</p>' +
       '<p class="detail__text">' + esc(d.detail) + '</p>' +
       '</div>' +
-      '<div class="stats">' +
+      '<div class="stat-pair">' +
       '<div class="stat"><div class="stat__num">' + fmtNum(h.total) + '</div><div class="stat__label">All-time decisions</div></div>' +
       '<div class="stat"><div class="stat__num">' + fmtNum(h.count7) + '</div><div class="stat__label">Last 7 days (of ' + fmtNum(v.health.total7) + ')</div></div>' +
       '</div>' +

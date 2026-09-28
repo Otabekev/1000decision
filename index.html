@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="color-scheme" content="only light">
-  <meta name="theme-color" content="#F5F2EC">
+  <meta name="theme-color" content="#F3F2EF">
   <title>1000 Decisions</title>
   <meta name="description" content="A personal daily accountability tool. Log small acts of discipline toward 1000 and see, by color, whether each priority gets the attention it deserves.">
   <link rel="manifest" href="manifest.webmanifest">
@@ -15,8 +15,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="1000 Decisions">
-  <link rel="preload" href="fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="fonts/archivo-expanded.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/fonts.css">
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
@@ -24,18 +23,22 @@
 
   <header class="topbar" id="topbar">
     <div class="topbar__inner">
-      <a class="brand" href="#top" aria-label="1000 Decisions — back to top">
-        <span class="brand__mark" aria-hidden="true">
-          <i></i><i></i><i></i><i></i><i class="a"></i><i></i><i class="g"></i><i class="r"></i><i class="e"></i>
-        </span>
+      <a class="brand" href="#top" aria-label="1000 Decisions, back to top">
+        <span class="brand__mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i></span>
         <span class="brand__name">1000 Decisions</span>
       </a>
       <div class="topbar__stats" aria-hidden="true">
-        <span class="topbar__total" id="topbar-total">0/1000</span>
         <span class="topbar__day" id="topbar-day">Day 1</span>
+        <span class="topbar__total" id="topbar-total">0/1000</span>
       </div>
-      <button class="icon-btn icon-btn--soft" type="button" data-action="share" aria-label="Create today’s card">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg>
+      <button class="btn btn--ghost topbar__card" type="button" data-action="share">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16l4.5-4.5a2 2 0 0 1 2.8 0L16 16m-2-2 1.5-1.5a2 2 0 0 1 2.8 0L20 14.2M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>
+        <span>Today’s card</span>
+      </button>
+      <button class="btn btn--primary topbar__log" type="button" data-action="add">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span>Log decision</span>
+        <kbd>N</kbd>
       </button>
     </div>
   </header>
@@ -44,140 +47,161 @@
     <span id="top"></span>
 
     <!-- 1. Summary -->
-    <section class="hero" id="summary" aria-labelledby="hero-count">
-      <div class="hero__meta">
-        <span class="day-pill" id="day-pill">Day 1</span>
-        <span class="hero__date" id="hero-date"></span>
-        <span class="today-chip" id="today-chip" hidden></span>
-      </div>
-      <h1 class="hero__count" id="hero-count">
-        <span class="hero__total" id="hero-total" data-value="0" aria-hidden="true">0</span><span class="hero__goal" id="hero-goal" aria-hidden="true">/1000</span>
-        <span class="sr-only" id="hero-sr"></span>
-      </h1>
-      <p class="hero__caption" id="hero-caption">decisions made</p>
-      <div class="dots" id="dots"></div>
-      <p class="dots__legend" id="dots-legend"></p>
-    </section>
-
-    <!-- 2. Balance -->
-    <section class="card" id="balance" aria-labelledby="balance-title">
-      <div class="card__head">
-        <div>
-          <p class="eyebrow">Balance · last 7 days</p>
-          <h2 class="card__title" id="balance-title">Where your discipline goes</h2>
+    <section class="panel summary" id="summary" aria-labelledby="hero-count">
+      <div class="summary__main">
+        <div class="hero__meta">
+          <span class="day-pill" id="day-pill">Day 1</span>
+          <span class="hero__date" id="hero-date"></span>
         </div>
+        <h1 class="hero__count" id="hero-count">
+          <span class="hero__total" id="hero-total" data-value="0" aria-hidden="true">0</span><span class="hero__goal" id="hero-goal" aria-hidden="true">/1000</span>
+          <span class="sr-only" id="hero-sr"></span>
+        </h1>
+        <p class="hero__caption" id="hero-caption">decisions made</p>
+        <div class="dots" id="dots"></div>
+        <p class="dots__legend" id="dots-legend"></p>
       </div>
-      <div class="insight" id="insight" hidden></div>
-      <div class="bars" id="bars"></div>
-      <div class="suggest-more" id="suggest-more" hidden></div>
-      <div class="legend" id="legend">
-        <span><i class="lg lg--balanced"></i>Balanced</span>
-        <span><i class="lg lg--over"></i>Over-invested</span>
-        <span><i class="lg lg--neglected"></i>Neglected</span>
-        <span><i class="lg lg--idle"></i>No recent data</span>
-      </div>
-      <p class="footnote" id="balance-foot">Bar length = all-time decisions. Color = the last 7 days vs. your priorities. Tap a bar for details.</p>
+      <dl class="kpis" id="kpis"></dl>
     </section>
 
-    <!-- 3. Priorities -->
-    <section class="card" id="priorities" aria-labelledby="prio-title">
-      <div class="card__head">
-        <div>
-          <p class="eyebrow">Priorities</p>
-          <h2 class="card__title" id="prio-title">What matters most</h2>
-        </div>
-      </div>
-      <p class="card__lede">Drag to reorder. The higher a category sits, the bigger share of your decisions it should get.</p>
-      <ol class="prio" id="prio-list"></ol>
-      <button class="btn btn--soft btn--block" type="button" data-action="new-category">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-        New category
-      </button>
-    </section>
-
-    <!-- 5. History -->
-    <section class="card" id="history" aria-labelledby="history-title">
-      <div class="card__head">
-        <div>
-          <p class="eyebrow">History</p>
-          <h2 class="card__title" id="history-title">Every decision</h2>
-        </div>
-        <span class="count-badge" id="history-count">0</span>
-      </div>
-      <div class="chips" id="history-filters" role="group" aria-label="Filter by category"></div>
-      <div class="timeline" id="timeline"></div>
-      <button class="btn btn--soft btn--block" type="button" data-action="history-more" id="history-more" hidden>Show more</button>
-    </section>
-
-    <!-- 6. Share card -->
-    <section class="card share" id="share" aria-labelledby="share-title">
-      <button class="share__thumb" type="button" data-action="share" aria-label="Open today’s card">
-        <canvas id="share-thumb" width="1080" height="1920"></canvas>
-      </button>
-      <div class="share__body">
-        <p class="eyebrow">Instagram story</p>
-        <h2 class="card__title" id="share-title">Today’s card</h2>
-        <p class="card__lede">Day, total, balance bars and today’s standout decision as a 1080×1920 image, ready to post.</p>
-      </div>
-      <button class="btn btn--primary share__cta" type="button" data-action="share">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16l4.5-4.5a2 2 0 0 1 2.8 0L16 16m-2-2 1.5-1.5a2 2 0 0 1 2.8 0L20 14.2M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="9" cy="8.5" r="1.4"/></svg>
-        Create today’s card
-      </button>
-    </section>
-
-    <!-- 7. Settings -->
-    <section class="card settings" id="settings">
-      <details id="settings-details">
-        <summary>
-          <span>
-            <span class="eyebrow">Settings</span>
-            <span class="card__title">Goal, start date & backup</span>
-          </span>
-          <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-        </summary>
-        <form class="settings__form" id="settings-form" novalidate>
-          <label class="field">
-            <span class="field__label">Goal</span>
-            <input class="input" type="number" name="goal" min="10" max="100000" step="1" inputmode="numeric" required>
-          </label>
-          <label class="field">
-            <span class="field__label">Start date <em>Day 1</em></span>
-            <input class="input" type="date" name="startDate" required>
-          </label>
-          <label class="field field--wide">
-            <span class="field__label">Signature on your card <em>Optional, e.g. @yourname</em></span>
-            <input class="input" type="text" name="signature" maxlength="40" autocomplete="off" placeholder="@yourname">
-          </label>
-        </form>
-        <div class="settings__block">
-          <p class="settings__label">Backup</p>
-          <p class="settings__hint" id="backup-hint">Your data lives only in this browser. Export a backup now and then.</p>
-          <div class="settings__row">
-            <button class="btn btn--soft" type="button" data-action="export">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
-              Export JSON
-            </button>
-            <label class="btn btn--soft">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V9m0 0-4.5 4.5M12 9l4.5 4.5M5 4h14"/></svg>
-              Import JSON
-              <input type="file" accept="application/json,.json" id="import-file" class="sr-only">
-            </label>
+    <div class="grid-2">
+      <!-- 2. Balance -->
+      <section class="panel" id="balance" aria-labelledby="balance-title">
+        <div class="panel__head">
+          <div>
+            <p class="eyebrow">Balance · last 7 days</p>
+            <h2 class="panel__title" id="balance-title">Where your discipline goes</h2>
           </div>
         </div>
-        <div class="settings__block">
-          <p class="settings__label">Start over</p>
-          <div class="settings__row">
-            <button class="btn btn--danger-soft" type="button" data-action="reset">Erase all data</button>
+        <div class="insight" id="insight" hidden></div>
+        <div class="bars" id="bars"></div>
+        <div class="suggest-more" id="suggest-more" hidden></div>
+        <div class="legend" id="legend">
+          <span><i class="lg lg--balanced"></i>Balanced</span>
+          <span><i class="lg lg--over"></i>Over-invested</span>
+          <span><i class="lg lg--neglected"></i>Neglected</span>
+          <span><i class="lg lg--idle"></i>No recent data</span>
+        </div>
+        <p class="footnote" id="balance-foot">Length = all-time decisions. Color = last 7 days measured against your priorities. Click a bar for the full breakdown.</p>
+      </section>
+
+      <!-- 3. Priorities -->
+      <section class="panel" id="priorities" aria-labelledby="prio-title">
+        <div class="panel__head">
+          <div>
+            <p class="eyebrow">Priorities</p>
+            <h2 class="panel__title" id="prio-title">Rank what matters</h2>
           </div>
         </div>
-      </details>
+        <p class="panel__lede">Drag to reorder. The higher a priority sits, the larger share of your decisions it demands.</p>
+        <ol class="prio" id="prio-list"></ol>
+        <button class="btn btn--soft btn--block" type="button" data-action="new-category">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          New category
+        </button>
+      </section>
+    </div>
+
+    <!-- Statistics -->
+    <section class="panel stats" id="stats" aria-labelledby="stats-title">
+      <div class="panel__head">
+        <div>
+          <p class="eyebrow">Statistics</p>
+          <h2 class="panel__title" id="stats-title">The record</h2>
+        </div>
+      </div>
+      <div class="stats__grid">
+        <figure class="chart">
+          <figcaption class="chart__title">Decisions per day · last 30 days</figcaption>
+          <div class="chart__body" id="chart-daily"></div>
+        </figure>
+        <figure class="chart">
+          <figcaption class="chart__title">Attention vs. target · last 7 days</figcaption>
+          <div class="chart__body" id="chart-share"></div>
+        </figure>
+      </div>
     </section>
 
-    <p class="page__foot">Private by design. No account, no cloud: everything is stored on this device.</p>
+    <div class="grid-2 grid-2--wide-left">
+      <!-- 5. History -->
+      <section class="panel" id="history" aria-labelledby="history-title">
+        <div class="panel__head">
+          <div>
+            <p class="eyebrow">History</p>
+            <h2 class="panel__title" id="history-title">Every decision</h2>
+          </div>
+          <span class="count-badge" id="history-count">0</span>
+        </div>
+        <div class="chips" id="history-filters" role="group" aria-label="Filter by category"></div>
+        <div class="timeline" id="timeline"></div>
+        <button class="btn btn--soft btn--block" type="button" data-action="history-more" id="history-more" hidden>Show more</button>
+      </section>
+
+      <div class="stack">
+        <!-- 6. Share card -->
+        <section class="panel share" id="share" aria-labelledby="share-title">
+          <button class="share__thumb" type="button" data-action="share" aria-label="Open today’s card">
+            <canvas id="share-thumb" width="1080" height="1920"></canvas>
+          </button>
+          <div class="share__body">
+            <p class="eyebrow">Instagram story</p>
+            <h2 class="panel__title" id="share-title">Today’s card</h2>
+            <p class="panel__lede">Day, total, balance and today’s standout decision as a 1080×1920 image.</p>
+          </div>
+          <button class="btn btn--primary share__cta" type="button" data-action="share">Create today’s card</button>
+        </section>
+
+        <!-- 7. Settings -->
+        <section class="panel settings" id="settings">
+          <details id="settings-details">
+            <summary>
+              <span>
+                <span class="eyebrow">Settings</span>
+                <span class="panel__title">Goal, start date, backup</span>
+              </span>
+              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </summary>
+            <form class="settings__form" id="settings-form" novalidate>
+              <label class="field">
+                <span class="field__label">Goal</span>
+                <input class="input" type="number" name="goal" min="10" max="100000" step="1" inputmode="numeric" required>
+              </label>
+              <label class="field">
+                <span class="field__label">Start date <em>Day 1</em></span>
+                <input class="input" type="date" name="startDate" required>
+              </label>
+              <label class="field field--wide">
+                <span class="field__label">Signature on your card <em>Optional</em></span>
+                <input class="input" type="text" name="signature" maxlength="40" autocomplete="off" placeholder="@yourname">
+              </label>
+            </form>
+            <div class="settings__block">
+              <p class="settings__label">Backup</p>
+              <p class="settings__hint" id="backup-hint">Your data lives only in this browser. Export a backup now and then.</p>
+              <div class="settings__row">
+                <button class="btn btn--soft" type="button" data-action="export">Export JSON</button>
+                <label class="btn btn--soft">
+                  Import JSON
+                  <input type="file" accept="application/json,.json" id="import-file" class="sr-only">
+                </label>
+              </div>
+            </div>
+            <div class="settings__block">
+              <p class="settings__label">Start over</p>
+              <div class="settings__row">
+                <button class="btn btn--danger-soft" type="button" data-action="reset">Erase all data</button>
+              </div>
+            </div>
+          </details>
+        </section>
+      </div>
+    </div>
+
+    <p class="page__foot">Runs on your computer. No account, no cloud, no subscription. Your data never leaves this device.</p>
   </main>
 
-  <!-- 4. Add decision -->
-  <button class="fab" type="button" data-action="add" aria-label="Log a decision" title="Log a decision (N)">
+  <!-- 4. Add decision (phones) -->
+  <button class="fab" type="button" data-action="add" aria-label="Log a decision">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
   </button>
 
