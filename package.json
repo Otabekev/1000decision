@@ -1,0 +1,14 @@
+{
+  "name": "1000-decisions",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A personal daily accountability tool. Log small acts of discipline toward 1000 and see, by color, whether each priority gets the attention it deserves.",
+  "scripts": {
+    "start": "npx --yes serve -l 8080 .",
+    "test": "node --test tests/health.test.js",
+    "test:e2e": "node --test tests/e2e.test.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  }
+}
