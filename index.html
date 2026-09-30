@@ -46,6 +46,9 @@
   <main class="page" id="main">
     <span id="top"></span>
 
+    <!-- Pulse: one quiet-period insight + the optional one-tap question -->
+    <section class="pulse" id="pulse" aria-live="polite" hidden></section>
+
     <!-- 1. Summary -->
     <section class="panel summary" id="summary" aria-labelledby="hero-count">
       <div class="summary__main">
@@ -122,6 +125,31 @@
       </div>
     </section>
 
+    <div class="grid-2">
+      <!-- Proof -->
+      <section class="panel" id="proof" aria-labelledby="proof-title">
+        <div class="panel__head">
+          <div>
+            <p class="eyebrow">Proof</p>
+            <h2 class="panel__title" id="proof-title">What your decisions got you</h2>
+          </div>
+          <span class="count-badge" id="proof-count" title="Results logged">0</span>
+        </div>
+        <div id="proof-body"></div>
+      </section>
+
+      <!-- Patterns -->
+      <section class="panel" id="patterns" aria-labelledby="patterns-title">
+        <div class="panel__head">
+          <div>
+            <p class="eyebrow">Your patterns</p>
+            <h2 class="panel__title" id="patterns-title">When you decide</h2>
+          </div>
+        </div>
+        <div id="patterns-body"></div>
+      </section>
+    </div>
+
     <div class="grid-2 grid-2--wide-left">
       <!-- 5. History -->
       <section class="panel" id="history" aria-labelledby="history-title">
@@ -174,6 +202,10 @@
                 <span class="field__label">Signature on your card <em>Optional</em></span>
                 <input class="input" type="text" name="signature" maxlength="40" autocomplete="off" placeholder="@yourname">
               </label>
+              <label class="check field--wide">
+                <input type="checkbox" name="showWhyOnCard">
+                <span><b>Show my why on the card</b><small>Adds the standout category’s why under today’s decision.</small></span>
+              </label>
             </form>
             <div class="settings__block">
               <p class="settings__label">Backup</p>
@@ -223,6 +255,7 @@
   <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
   <script src="js/health.js"></script>
+  <script src="js/insights.js"></script>
   <script src="js/card.js"></script>
   <script src="js/app.js"></script>
 </body>

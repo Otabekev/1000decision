@@ -429,6 +429,13 @@
         rLines.forEach(function (line, i) {
           ctx.fillText(line, PAD + 50, ry + i * 42);
         });
+        ry += (rLines.length - 1) * 42 + 52;
+      }
+      if (s.why) {
+        ctx.fillStyle = BRASS;
+        ctx.font = font(700, 22, UI);
+        var wy = wrap(ctx, ('Why: ' + s.why).toUpperCase(), INNER, 1)[0];
+        spaced(ctx, wy, PAD, Math.min(ry + 4, 1690), 2.4, 'left');
       }
     } else {
       ctx.fillStyle = INK3;

@@ -12,8 +12,11 @@ A personal daily accountability tool. You log small acts of discipline ("decisio
 | --- | --- |
 | **Summary** | `X / 1000` in huge type, **Day N**, a 1000-square grid (one square per decision, today's in brass), and stats: today, last 7 days, active days / consistency, daily average, projected finish date. |
 | **Statistics** | Decisions per day for 30 days (stacked by category, with the 7-day average) and each priority's actual share vs. target. |
+| **Pulse** | One line at the top, only when useful: a risk day ("Wednesdays are when Gym goes quiet"), your #1 priority going silent, a quieter-than-usual day, or your strongest window. After a quiet evening, an optional one-tap "What pulled you away?" (Phone · Tired · Stress · Busy · Just didn't log). Nothing shows until 14 days and 50 decisions of data. |
+| **Proof** | Every "what happened" result in one place, with totals the app reads from your words: money ("$828 saved"), time ("24 h back") or a count. |
+| **Your patterns** | Weekday × hour heatmap (last 8 weeks), strongest hours, quietest window, longest silences, and what pulls you away most. |
 | **Balance** | One bar per category. Length = all-time decisions. Color = health over the last 7 days. Tap a bar for a detail popup: totals, a 7-day chart, target vs. actual share, the status in plain words, and recent decisions. |
-| **Priorities** | Drag to reorder, or use the arrow keys on the handle. Reordering instantly changes targets and recomputes health. Edit a category to rename, recolor or delete it; **New category** creates one at any position. |
+| **Priorities** | Each category can have a one-line *why*, shown only when it falls behind. Drag to reorder, or use the arrow keys on the handle. Reordering instantly changes targets and recomputes health. Edit a category to rename, recolor or delete it; **New category** creates one at any position. |
 | **+ button** | Pick a category, type "what I did", optionally "what happened as a result", then save. You get an Undo toast. |
 | **History** | Every decision, newest first, grouped by day and filterable by category. Tap an entry to expand it, edit it or delete it. |
 | **Today's card** | Renders a 1080×1920 PNG for an Instagram story: Day N, X/1000, the dot grid, the balance bars and today's standout decision with its result. Download it, or use Share on phones that support it. |
@@ -73,6 +76,7 @@ Exports wrap the same data as `{ "app": "1000-decisions", "version": 1, "exporte
 index.html              the single page
 css/app.css             all styles (light, warm, high-contrast)
 js/health.js            health algorithm (pure, unit-tested)
+js/insights.js          proof totals and rhythm/quiet-period patterns (pure, unit-tested)
 js/card.js              Instagram card renderer (Canvas 2D, no dependencies)
 js/app.js               state, rendering, interactions
 sw.js                   offline cache (bump VERSION when shipping changes)

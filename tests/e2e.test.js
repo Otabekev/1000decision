@@ -268,3 +268,56 @@ test('no horizontal overflow on a 320px phone; goal variants render', async () =
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('why: saved from the editor and shown when the category falls behind', async () => {
+  const { ctx, page, errors } = await open(sample());
+  await page.click('[data-action="edit-category"][data-id="c1"]');
+  await page.fill('input[name="why"]', 'so I never feel weak');
+  await page.click('.sheet .add-form button[type="submit"]');
+  const s = await stored(page);
+  assert.equal(s.categories[0].why, 'so I never feel weak');
+  assert.match(await page.textContent('#insight'), /so I never feel weak/);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('proof wall counts results; save toast offers Add result', async () => {
+  const { ctx, page, errors } = await open(sample());
+  assert.equal(await page.textContent('#proof-count'), '7');
+  await page.click('.fab');
+  await page.click('.tile[data-pick="Money"]');
+  await page.fill('input[name="text"]', 'Skipped takeout');
+  await page.click('.add-form button[type="submit"]');
+  await page.click('.toast button:has-text("Add result")');
+  await page.fill('input[name="result"]', 'Saved $25');
+  await page.click('.sheet .add-form button[type="submit"]');
+  await page.waitForFunction(() => document.getElementById('proof-count').textContent === '8');
+  assert.match(await page.textContent('#proof-body'), /\$25 saved/);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('patterns: learning state before 14 days; one-tap answer is stored', async () => {
+  const young = await open(sample());
+  assert.match(await young.page.textContent('#patterns-body'), /Learning your rhythm/);
+  await young.ctx.close();
+
+  // 20 days, steady mornings and evenings, but nothing yesterday evening.
+  const data = sample();
+  const now = new Date();
+  data.decisions = [];
+  for (let d = 20; d >= 1; d--) {
+    for (const h of [8, 9, 19, 20]) {
+      if (d === 1 && h >= 17) continue;
+      const t = new Date(now); t.setDate(t.getDate() - d); t.setHours(h, 0, 0, 0);
+      data.decisions.push({ id: 'p' + d + h, categoryName: 'Money', text: 'x', result: '', timestamp: t.toISOString() });
+    }
+  }
+  const { ctx, page } = await open(data);
+  await page.click('.pulse__answers [data-answer="phone"]');
+  const s = await stored(page);
+  assert.equal(s.reasons.length, 1);
+  assert.equal(s.reasons[0].answer, 'phone');
+  assert.equal(await page.locator('.pulse__ask').count(), 0);
+  await ctx.close();
+});

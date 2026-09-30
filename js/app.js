@@ -11,6 +11,7 @@
   'use strict';
 
   var H = window.TDHealth;
+  var I = window.TDInsights;
   var Card = window.TDCard;
 
   var STORAGE_KEY = 'thousand-decisions:v1';
@@ -24,6 +25,8 @@
   var MAX_NAME = 24;
   var MAX_TEXT = 140;
   var MAX_RESULT = 200;
+  var MAX_WHY = 80;
+  var REASONS = [['phone', 'Phone'], ['tired', 'Tired'], ['stress', 'Stress'], ['busy', 'Busy'], ['none', 'Just didn’t log']];
 
   // ── Icons ──────────────────────────────────────────────────────────────
   var ICON = {
@@ -117,7 +120,10 @@
       version: 1,
       categories: [],
       decisions: [],
-      settings: { goal: 1000, startDate: ymd(new Date()), signature: '', lastBackupAt: null }
+      settings: { goal: 1000, startDate: ymd(new Date()), signature: '', lastBackupAt: null, showWhyOnCard: false },
+      // One-tap answers to "What pulled you away?" and when the question was last shown.
+      reasons: [],
+      prompt: { lastAsked: null, ignored: 0, pausedUntil: null }
     };
   }
 
@@ -145,6 +151,21 @@
     if (parseYmd(s.startDate)) out.settings.startDate = s.startDate;
     out.settings.signature = typeof s.signature === 'string' ? s.signature.slice(0, 40) : '';
     out.settings.lastBackupAt = typeof s.lastBackupAt === 'string' ? s.lastBackupAt : null;
+    out.settings.showWhyOnCard = s.showWhyOnCard === true;
+
+    if (Array.isArray(src.reasons)) {
+      out.reasons = src.reasons.filter(function (r) {
+        return r && parseYmd(r.date) && REASONS.some(function (x) { return x[0] === r.answer; });
+      }).map(function (r) { return { date: r.date, window: r.window === 'day' ? 'day' : 'evening', answer: r.answer }; }).slice(-400);
+    }
+    var pr = src.prompt && typeof src.prompt === 'object' ? src.prompt : {};
+    out.prompt = {
+      lastAsked: parseYmd(pr.lastAsked) ? pr.lastAsked : null,
+      ignored: Math.max(0, parseInt(pr.ignored, 10) || 0),
+      pausedUntil: parseYmd(pr.pausedUntil) ? pr.pausedUntil : null,
+      askedFor: parseYmd(pr.askedFor) ? pr.askedFor : null,
+      dismissedOn: parseYmd(pr.dismissedOn) ? pr.dismissedOn : null
+    };
 
     var ids = Object.create(null);
     function freshId(id) {
@@ -170,7 +191,8 @@
           id: freshId(x.c.id),
           name: name,
           color: validColor(x.c.color) || nextColor(out.categories),
-          priorityRank: out.categories.length + 1
+          priorityRank: out.categories.length + 1,
+          why: typeof x.c.why === 'string' ? x.c.why.trim().slice(0, MAX_WHY) : ''
         });
       });
 
@@ -182,7 +204,7 @@
       if (!isFinite(t)) return;
       var cat = findCategory(out.categories, d.categoryName);
       if (!cat) {
-        cat = { id: uid(), name: d.categoryName.trim().slice(0, MAX_NAME), color: nextColor(out.categories), priorityRank: out.categories.length + 1 };
+        cat = { id: uid(), name: d.categoryName.trim().slice(0, MAX_NAME), color: nextColor(out.categories), priorityRank: out.categories.length + 1, why: '' };
         out.categories.push(cat);
       }
       out.decisions.push({
@@ -243,7 +265,8 @@
     historyLimit: HISTORY_PAGE,
     openEntries: Object.create(null),
     cardPick: null,
-    introDone: false
+    introDone: false,
+    proofAll: false
   };
 
   // ── Derived view data ──────────────────────────────────────────────────
@@ -266,7 +289,8 @@
       today: today,
       numberOf: numberOf,
       total: state.decisions.length,
-      day: dayNumber(state.settings.startDate, now)
+      day: dayNumber(state.settings.startDate, now),
+      patterns: I.patterns(state.categories, state.decisions, now, state.reasons)
     };
   }
 
@@ -283,7 +307,7 @@
   }
 
   function addCategory(name, color, rank) {
-    var cat = { id: uid(), name: name, color: color || nextColor(state.categories), priorityRank: 0 };
+    var cat = { id: uid(), name: name, color: color || nextColor(state.categories), priorityRank: 0, why: '' };
     var index = clamp((rank || state.categories.length + 1) - 1, 0, state.categories.length);
     state.categories.splice(index, 0, cat);
     reRank();
@@ -318,6 +342,9 @@
     renderBalance(v, opts);
     renderPriorities(v);
     renderStats(v);
+    renderPulse(v);
+    renderProof(v);
+    renderPatterns(v);
     renderHistory(v, opts);
     renderSettings();
     scheduleThumb();
@@ -396,7 +423,7 @@
     var spark = week.map(function (d, i) {
       return '<i class="' + (d.total ? (i === 6 ? 't' : '') : 'z') + '" style="height:' + Math.max(8, (d.total / maxWeek) * 100).toFixed(0) + '%" title="' + d.total + '"></i>';
     }).join('');
-    var todayNote = v.today >= Math.ceil(pace7 || 1) ? '<p class="kpi__note is-good">On pace</p>' : '<p class="kpi__note' + (v.today ? '' : ' is-bad') + '">' + (v.today ? 'Pace is ' + pace7.toFixed(1) + ' a day' : 'Nothing logged yet') + '</p>';
+    var todayNote = v.today >= Math.ceil(pace7 || 1) ? '<p class="kpi__note is-good">On pace</p>' : '<p class="kpi__note">' + (v.today ? 'Pace is ' + pace7.toFixed(1) + ' a day' : 'One starts the day') + '</p>';
     $('#kpis').innerHTML =
       '<div class="kpi"><dt>Today</dt><dd>' + v.today + '</dd>' + todayNote + '</div>' +
       '<div class="kpi"><dt>Last 7 days</dt><dd>' + v.health.total7 + '</dd><div class="kpi__spark" aria-hidden="true">' + spark + '</div></div>' +
@@ -474,6 +501,152 @@
       '<div class="chart__legend"><span><i style="background:var(--ink-2)"></i>Actual share (colored by health)</span><span><i class="target" style="width:2px;height:12px;border:0;background:var(--ink)"></i>Target</span></div>';
   }
 
+  // ── Pulse: one insight line + the optional one-tap question ───────────
+  function questionFor(v) {
+    var q = v.patterns.yesterdayQuiet;
+    if (!q) return null;
+    var today = ymd(v.now);
+    var y = new Date(v.now);
+    y.setDate(y.getDate() - 1);
+    var yKey = ymd(y);
+    var pr = state.prompt;
+    if (pr.pausedUntil && pr.pausedUntil > today) return null;
+    if (state.reasons.some(function (r) { return r.date === yKey; })) return null;
+    if (pr.dismissedOn === today) return null;
+    if (pr.lastAsked !== today) {
+      // A new day: count the previous question as ignored if it went unanswered.
+      if (pr.lastAsked && pr.askedFor && pr.dismissedOn !== pr.lastAsked && !state.reasons.some(function (r) { return r.date === pr.askedFor; })) pr.ignored++;
+      if (pr.ignored >= 3) {
+        var until = new Date(v.now);
+        until.setDate(until.getDate() + 7);
+        pr.pausedUntil = ymd(until);
+        pr.ignored = 0;
+        save();
+        return null;
+      }
+      pr.lastAsked = today;
+      pr.askedFor = yKey;
+      save();
+    }
+    return { date: yKey, window: q.window, text: q.text };
+  }
+
+  function renderPulse(v) {
+    var el = $('#pulse');
+    var line = I.topLine(v.patterns, v.now);
+    var q = questionFor(v);
+    if (!line && !q) {
+      el.hidden = true;
+      el.innerHTML = '';
+      return;
+    }
+    var html = '';
+    if (line) {
+      var cat = line.category && v.catByName[line.category];
+      html += '<div class="pulse__line pulse__line--' + line.tone + '">' +
+        '<span class="pulse__mark" aria-hidden="true"></span>' +
+        '<p><b>' + esc(line.label) + '.</b> ' + esc(line.text) +
+        (cat && cat.why ? ' <em>“' + esc(cat.why) + '”</em>' : '') + '</p>' +
+        (cat ? '<button type="button" class="btn btn--soft pulse__cta" data-action="log-category" data-name="' + esc(cat.name) + '">Log ' + esc(cat.name) + '</button>' : '') +
+        '</div>';
+    }
+    if (q) {
+      html += '<div class="pulse__ask" data-date="' + q.date + '" data-window="' + q.window + '">' +
+        '<p>' + esc(q.text) + ' <span>What pulled you away?</span></p>' +
+        '<div class="pulse__answers">' + REASONS.map(function (r) {
+          return '<button type="button" class="chip" data-action="reason" data-answer="' + r[0] + '">' + esc(r[1]) + '</button>';
+        }).join('') +
+        '<button type="button" class="icon-btn" data-action="reason-dismiss" aria-label="Dismiss">' + icon('close') + '</button></div>' +
+        '</div>';
+    }
+    el.innerHTML = html;
+    el.hidden = false;
+  }
+
+  // ── Proof wall ─────────────────────────────────────────────────────────
+  function renderProof(v) {
+    var body = $('#proof-body');
+    var p = I.proof(state.categories, state.decisions);
+    $('#proof-count').textContent = fmtNum(p.total);
+    if (!p.total) {
+      body.innerHTML = '<p class="chart-empty">Results appear here. Next time you log a decision, add what happened. That’s the proof.</p>';
+      return;
+    }
+    var rows = p.rows.filter(function (r) { return r.count; });
+    var shown = p.results.slice(0, ui.proofAll ? 40 : 5);
+    body.innerHTML =
+      '<div class="proof__rows">' + rows.map(function (r) {
+        var c = v.catByName[r.name];
+        return '<div class="proof__row" style="--c:' + (c ? c.color : '#999') + '">' +
+          '<span class="proof__cat"><i></i>' + esc(r.name) + '</span>' +
+          '<span class="proof__big">' + esc(r.headline) + '</span>' +
+          '<span class="proof__sub">' + (r.headline.indexOf('result') === -1 ? 'from ' + r.count + ' ' + plural(r.count, 'result') : '“' + esc(r.latest.result) + '”') + '</span>' +
+          '</div>';
+      }).join('') + '</div>' +
+      '<p class="proof__label">Latest</p>' +
+      '<ul class="proof__list">' + shown.map(function (d) {
+        return '<li><span class="proof__result">→ ' + esc(d.result) + '</span><span class="proof__meta">' + esc(d.categoryName) + ' · ' + esc(fmtShort(new Date(d.timestamp), v.now)) + '</span></li>';
+      }).join('') + '</ul>' +
+      (p.total > 5 ? '<button type="button" class="btn btn--soft btn--block" data-action="proof-toggle">' + (ui.proofAll ? 'Show less' : 'Show all ' + fmtNum(p.total) + ' results') + '</button>' : '');
+  }
+
+  // ── Patterns ───────────────────────────────────────────────────────────
+  var REASON_LABEL = { phone: 'Phone', tired: 'Tired', stress: 'Stress', busy: 'Busy' };
+
+  function heatmapSvg(pt) {
+    var H0 = 6, cols = 18, cw = 26, ch = 22, gap = 3, left = 38, top = 4;
+    var max = 0;
+    pt.heat.forEach(function (row) { for (var h = H0; h < 24; h++) max = Math.max(max, row[h]); });
+    var days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    var W = left + cols * (cw + gap), Hh = top + 7 * (ch + gap) + 20;
+    var out = [];
+    pt.heat.forEach(function (row, r) {
+      out.push('<text x="0" y="' + (top + r * (ch + gap) + ch * 0.7) + '">' + days[r] + '</text>');
+      for (var h = H0; h < 24; h++) {
+        var n = row[h];
+        var a = n ? 0.15 + 0.85 * (n / max) : 0;
+        out.push('<rect x="' + (left + (h - H0) * (cw + gap)) + '" y="' + (top + r * (ch + gap)) + '" width="' + cw + '" height="' + ch + '" rx="2" fill="' + (n ? 'rgba(17,19,21,' + a.toFixed(2) + ')' : 'var(--surface-3)') + '"><title>' + days[r] + ' ' + I.hourLabel(h) + ': ' + n + '</title></rect>');
+      }
+    });
+    if (pt.strongest && pt.ready) {
+      var sx = left + (Math.max(H0, pt.strongest.start) - H0) * (cw + gap) - 2;
+      out.push('<rect x="' + sx + '" y="' + (top - 2) + '" width="' + (3 * (cw + gap) + 1) + '" height="' + (7 * (ch + gap) + 1) + '" fill="none" stroke="#B08D3C" stroke-width="2.5" rx="3"/>');
+    }
+    [6, 9, 12, 15, 18, 21].forEach(function (h) {
+      out.push('<text x="' + (left + (h - H0) * (cw + gap)) + '" y="' + (Hh - 4) + '">' + I.hourLabel(h) + '</text>');
+    });
+    return '<svg class="heat" viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="Decisions by weekday and hour, last 8 weeks">' + out.join('') + '</svg>';
+  }
+
+  function renderPatterns(v) {
+    var body = $('#patterns-body');
+    var pt = v.patterns;
+    if (!state.decisions.length) {
+      body.innerHTML = '<p class="chart-empty">After two weeks of logging, this shows your strongest hours, your quiet windows and what pulls you away.</p>';
+      return;
+    }
+    var html = '';
+    if (!pt.ready) {
+      var pd = pt.progress;
+      html += '<div class="learning"><p class="learning__title">Learning your rhythm</p>' +
+        '<div class="learning__row"><span>Days</span><span class="learning__bar"><i style="width:' + (pd.days / pd.needDays * 100).toFixed(0) + '%"></i></span><b>' + pd.days + ' of ' + pd.needDays + '</b></div>' +
+        '<div class="learning__row"><span>Decisions</span><span class="learning__bar"><i style="width:' + (pd.decisions / pd.needDecisions * 100).toFixed(0) + '%"></i></span><b>' + pd.decisions + ' of ' + pd.needDecisions + '</b></div>' +
+        '<p class="learning__note">Insights stay off until then, so they’re based on your real rhythm, not a guess.</p></div>';
+    }
+    html += '<div class="heat-wrap">' + heatmapSvg(pt) + '</div>';
+    if (pt.ready) {
+      var silences = pt.categories.slice().sort(function (a, b) { return a.priorityRank - b.priorityRank; }).slice(0, 3)
+        .map(function (c) { return esc(c.name) + ' ' + (c.longestSilence ? c.longestSilence + ' ' + plural(c.longestSilence, 'day') : 'none'); }).join(' · ');
+      html += '<dl class="facts">' +
+        (pt.strongest ? '<div><dt>Strongest hours</dt><dd>' + esc(pt.strongest.label) + '</dd><p>' + Math.round(pt.strongest.share * 100) + '% of your decisions</p></div>' : '') +
+        (pt.quietest ? '<div><dt>Quietest window</dt><dd>' + esc(pt.quietest.label) + '</dd><p>' + Math.round(pt.quietest.share * 100) + '% of your decisions</p></div>' : '') +
+        '<div><dt>Longest silence</dt><dd class="facts__small">' + silences + '</dd><p>last 60 days, top priorities</p></div>' +
+        '<div><dt>What pulls you away</dt><dd>' + (pt.reasons ? esc(REASON_LABEL[pt.reasons.top] || pt.reasons.top) : '—') + '</dd><p>' + (pt.reasons ? pt.reasons.count + ' of ' + pt.reasons.of + ' quiet periods' : 'Answer the one-tap question to learn this') + '</p></div>' +
+        '</dl>';
+    }
+    body.innerHTML = html;
+  }
+
   function renderDots(v, opts) {
     var goal = state.settings.goal;
     var host = $('#dots');
@@ -526,6 +699,27 @@
     el._raf = requestAnimationFrame(step);
   }
 
+  function whyOf(name) {
+    var c = findCategory(state.categories, name);
+    return c && c.why ? c.why : '';
+  }
+
+  function isRed(name) {
+    var h = H.computeHealth(state.categories, state.decisions, new Date()).byName[name];
+    return !!h && h.status === 'neglected';
+  }
+
+  function whyPlaceholder(name) {
+    var n = (name || '').toLowerCase();
+    if (/gym|train|fit|workout|sport|run|body/.test(n)) return 'e.g. so I’m still strong at 60';
+    if (/money|financ|spend|save|budget|wealth/.test(n)) return 'e.g. so I never depend on anyone';
+    if (/work|deep|focus|business|career|study|learn|read/.test(n)) return 'e.g. so my work speaks for itself';
+    if (/family|kid|son|daughter|wife|partner|friend|love/.test(n)) return 'e.g. so they remember me as present';
+    if (/health|sleep|food|diet|eat/.test(n)) return 'e.g. so I have energy for what matters';
+    if (/peace|calm|mind|mental|stress/.test(n)) return 'e.g. so I respond instead of react';
+    return 'e.g. so I become the man I said I would be';
+  }
+
   // Balance: insight + bars
   function insightFor(v) {
     var list = v.health.list;
@@ -544,6 +738,7 @@
       var u = neglected[0];
       return {
         tone: 'urgent', icon: 'alert',
+        why: whyOf(u.name),
         title: u.name + ' is your #1 priority, and it’s being neglected',
         text: 'It got ' + pct(u.actualShare) + ' of this week’s decisions. It should get about ' + pct(u.targetShare) + '.' + overNote
       };
@@ -553,6 +748,7 @@
       var more = neglected.length > 1 ? ' ' + (neglected.length - 1) + ' more ' + plural(neglected.length - 1, 'priority', 'priorities') + ' also behind.' : '';
       return {
         tone: 'neglected', icon: 'down',
+        why: whyOf(n.name),
         title: n.name + ' (#' + n.priorityRank + ') is falling behind',
         text: pct(n.actualShare) + ' of this week’s decisions vs. a ' + pct(n.targetShare) + ' target.' + more + overNote
       };
@@ -605,11 +801,11 @@
 
     var ins = insightFor(v);
     if (ins) {
-      var key = ins.tone + '|' + ins.title + '|' + ins.text;
+      var key = ins.tone + '|' + ins.title + '|' + ins.text + '|' + (ins.why || '');
       if (insightEl.dataset.key !== key) {
         insightEl.dataset.key = key;
         insightEl.className = 'insight insight--' + ins.tone;
-        insightEl.innerHTML = '<span class="insight__icon">' + icon(ins.icon) + '</span><div><p class="insight__title">' + esc(ins.title) + '</p><p class="insight__text">' + esc(ins.text) + '</p></div>';
+        insightEl.innerHTML = '<span class="insight__icon">' + icon(ins.icon) + '</span><div><p class="insight__title">' + esc(ins.title) + '</p><p class="insight__text">' + esc(ins.text) + '</p>' + (ins.why ? '<p class="why">“' + esc(ins.why) + '”</p>' : '') + '</div>';
       }
       insightEl.hidden = false;
     } else insightEl.hidden = true;
@@ -802,6 +998,7 @@
     var goal = fld(form, 'goal');
     var start = fld(form, 'startDate');
     var sig = fld(form, 'signature');
+    fld(form, 'showWhyOnCard').checked = !!s.showWhyOnCard;
     if (document.activeElement !== goal) goal.value = s.goal;
     if (document.activeElement !== start) start.value = s.startDate;
     if (document.activeElement !== sig) sig.value = s.signature;
@@ -842,7 +1039,7 @@
         var col = H.colorsFor(h);
         return { name: c.name, color: c.color, total: h.total, status: h.status, fill: col.fill, track: col.track, onFill: col.onFill };
       }),
-      standout: pick ? { id: pick.id, text: pick.text, result: pick.result, categoryName: pick.categoryName, color: catColor(v, pick.categoryName), number: v.numberOf[pick.id] } : null,
+      standout: pick ? { id: pick.id, text: pick.text, result: pick.result, categoryName: pick.categoryName, color: catColor(v, pick.categoryName), number: v.numberOf[pick.id], why: state.settings.showWhyOnCard ? whyOf(pick.categoryName) : '' } : null,
       signature: (state.settings.signature || '').trim()
     };
   }
@@ -867,13 +1064,19 @@
     if (opts.color) el.style.setProperty('--c', opts.color);
     el.innerHTML = (opts.color ? '<span class="toast__dot"></span>' : '') +
       '<span class="toast__msg">' + esc(message) + (opts.sub ? '<small>' + esc(opts.sub) + '</small>' : '') + '</span>' +
-      (opts.action ? '<button type="button">' + esc(opts.action.label) + '</button>' : '');
-    if (opts.action) {
-      el.querySelector('button').addEventListener('click', function () {
+      '';
+    var actions = opts.actions || (opts.action ? [opts.action] : []);
+    actions.forEach(function (a) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = a.label;
+      b.addEventListener('click', function () {
         dismiss();
-        opts.action.run();
+        a.run();
       });
-    }
+      el.appendChild(b);
+    });
+    if (actions.length) opts.action = actions[0];
     host.appendChild(el);
     function dismiss() {
       el.classList.add('is-leaving');
@@ -1072,7 +1275,7 @@
       className: 'sheet--add',
       label: editing ? 'Edit decision' : 'Log a decision',
       focus: function () {
-        var input = $('input[name="text"]', sheetBody);
+        var input = $('input[name="' + (opts.focus === 'result' ? 'result' : 'text') + '"]', sheetBody);
         if (input) focusEnd(input);
       }
     });
@@ -1129,6 +1332,7 @@
       sheetHead(editing ? 'Edit decision' : 'Log a decision', '', { back: !editing && canGoBack, eyebrow: 'Decision #' + fmtNum(number) }) +
       '<button type="button" class="cat-chip" data-sheet="back" style="--c:' + c.color + '" aria-label="Category: ' + esc(c.name) + '. Change category"><i></i><span>' + esc(c.name) + '</span><small>#' + c.priorityRank + ' priority</small>' + icon('swap') + '</button>' +
       '<form class="add-form" novalidate autocomplete="off">' +
+      (c.why && isRed(c.name) ? '<p class="why why--note">“' + esc(c.why) + '”</p>' : '') +
       '<label class="field"><span class="field__label">What did you do?</span>' +
       '<input class="input" name="text" type="text" maxlength="' + MAX_TEXT + '" enterkeyhint="next" placeholder="' + esc(placeholderFor(c.name)) + '" value="' + esc(draft.text) + '" required></label>' +
       '<label class="field"><span class="field__label">What happened as a result? <em>Optional</em></span>' +
@@ -1189,15 +1393,17 @@
         return;
       }
       var d = { id: uid(), categoryName: cat.name, text: t, result: r, timestamp: new Date().toISOString() };
+      var gap = daysSinceCategory(cat.name);
       commit(function (s) { s.decisions.push(d); }, { justAdded: d.id });
       closeSheet();
       if (navigator.vibrate) navigator.vibrate(12);
       var n = state.decisions.length;
-      var milestone = n % 100 === 0 || n === state.settings.goal;
-      toast(milestone ? 'Milestone: ' + fmtNum(n) + ' decisions' : 'Decision #' + fmtNum(n) + ' logged', {
+      var actions = [{ label: 'Undo', run: function () { removeDecision(d.id, true); } }];
+      if (!r) actions.push({ label: 'Add result', run: function () { openAdd({ editId: d.id, focus: 'result' }); } });
+      toast(momentumMessage(cat.name, gap), {
         color: cat.color,
-        sub: cat.name + (n === state.settings.goal ? ' · Goal reached' : ''),
-        action: { label: 'Undo', run: function () { removeDecision(d.id, true); } }
+        sub: 'Decision #' + fmtNum(n) + ' · ' + cat.name + (n === state.settings.goal ? ' · Goal reached' : ''),
+        actions: actions
       });
       requestPersistence();
     }
@@ -1219,6 +1425,34 @@
         confirmDelete(editing.id);
       }
     };
+  }
+
+  /** Whole days since this category's previous decision, or null if none. */
+  function daysSinceCategory(name) {
+    for (var i = state.decisions.length - 1; i >= 0; i--) {
+      if (state.decisions[i].categoryName === name) return dayIndex(new Date()) - dayIndex(new Date(state.decisions[i].timestamp));
+    }
+    return null;
+  }
+
+  /** Light, forward-looking wording after a save. Never mentions what's missing. */
+  function momentumMessage(catName, gapBefore) {
+    var n = state.decisions.length;
+    if (n % 100 === 0 || n === state.settings.goal) return 'Milestone: ' + fmtNum(n) + ' decisions';
+    if (gapBefore !== null && gapBefore >= 3) return 'Back. ' + catName + ' is moving again.';
+    var now = new Date();
+    var todayIdx = dayIndex(now);
+    var perDay = Object.create(null);
+    state.decisions.forEach(function (d) {
+      var k = dayIndex(new Date(d.timestamp));
+      perDay[k] = (perDay[k] || 0) + 1;
+    });
+    var today = perDay[todayIdx] || 0;
+    var best = 0;
+    for (var k = todayIdx - 7; k >= todayIdx - 364; k -= 7) best = Math.max(best, perDay[k] || 0);
+    var weekday = now.toLocaleDateString(LOCALE, { weekday: 'long' });
+    if (best && today > best) return today + ' today. Best ' + weekday + ' so far.';
+    return today + ' today. One more?';
   }
 
   function placeholderFor(name) {
@@ -1315,6 +1549,8 @@
       '<div class="detail__status"><span class="detail__badge">' + icon(STATUS_ICON[h.status]) + esc(d.short) + '</span></div>' +
       '<p class="detail__label">' + esc(d.label) + '</p>' +
       '<p class="detail__text">' + esc(d.detail) + '</p>' +
+      (c.why && h.status === 'neglected' ? '<p class="why why--lg">“' + esc(c.why) + '”</p>' : '') +
+      (!c.why ? '<button type="button" class="linkish" data-sheet="add-why">+ Add your why</button>' : '') +
       '</div>' +
       '<div class="stat-pair">' +
       '<div class="stat"><div class="stat__num">' + fmtNum(h.total) + '</div><div class="stat__label">All-time decisions</div></div>' +
@@ -1362,7 +1598,9 @@
       var a = e.target.closest('[data-sheet]');
       if (!a) return;
       if (a.dataset.sheet === 'close') closeSheet();
-      else if (a.dataset.sheet === 'log') {
+      else if (a.dataset.sheet === 'add-why') {
+        openCategoryEditor({ id: c.id, focusWhy: true });
+      } else if (a.dataset.sheet === 'log') {
         openAdd({ categoryName: name });
       } else if (a.dataset.sheet === 'history') {
         ui.historyFilter = name;
@@ -1381,6 +1619,7 @@
     var n = state.categories.length;
     var draft = {
       name: editing ? editing.name : (opts.name || ''),
+      why: editing ? editing.why || '' : '',
       color: editing ? editing.color : nextColor(state.categories),
       rank: editing ? editing.priorityRank : n + 1
     };
@@ -1393,6 +1632,8 @@
         '<form class="add-form" novalidate autocomplete="off">' +
         '<label class="field"><span class="field__label">Name</span>' +
         '<input class="input" name="name" type="text" maxlength="' + MAX_NAME + '" enterkeyhint="done" placeholder="e.g. Gym" value="' + esc(draft.name) + '" required></label>' +
+        '<label class="field"><span class="field__label">Why does this matter? <em>Optional · one line · shown when this falls behind</em></span>' +
+        '<input class="input" name="why" type="text" maxlength="' + MAX_WHY + '" enterkeyhint="done" placeholder="' + esc(whyPlaceholder(draft.name)) + '" value="' + esc(draft.why) + '"></label>' +
         (!editing && unused.length ? '<div class="suggest" style="margin-top:-6px">' + unused.map(function (s) { return '<button type="button" data-suggest="' + esc(s) + '" style="--c:' + draft.color + '"><i></i>' + esc(s) + '</button>'; }).join('') + '</div>' : '') +
         '<div class="field"><span class="field__label">Color <em>Its identity. Health colors still show on the bars.</em></span>' +
         '<div class="swatches" role="radiogroup" aria-label="Color">' +
@@ -1450,9 +1691,11 @@
 
       refresh();
 
+      var whyInput = fld(form, 'why');
       input.addEventListener('input', function () {
         draft.name = input.value;
         input.classList.remove('is-invalid');
+        if (!whyInput.value) whyInput.placeholder = whyPlaceholder(draft.name);
         refresh();
       });
 
@@ -1475,10 +1718,12 @@
           if (editing) {
             renameCategory(editing, name);
             editing.color = draft.color;
+            editing.why = whyInput.value.trim().slice(0, MAX_WHY);
             moveCategory(editing.id, draft.rank - 1);
             saved = editing;
           } else {
             saved = addCategory(name, draft.color, draft.rank);
+            saved.why = whyInput.value.trim().slice(0, MAX_WHY);
           }
         });
         if (opts.afterSave) opts.afterSave(saved);
@@ -1516,7 +1761,10 @@
     }, {
       className: 'sheet--category',
       label: editing ? 'Edit category' : 'New category',
-      focus: function () { if (!editing) $('input[name="name"]', sheetBody).focus({ preventScroll: true }); }
+      focus: function () {
+        if (opts.focusWhy) $('input[name="why"]', sheetBody).focus({ preventScroll: true });
+        else if (!editing) $('input[name="name"]', sheetBody).focus({ preventScroll: true });
+      }
     });
   }
 
@@ -1887,6 +2135,26 @@
       }
       case 'edit-decision': openAdd({ editId: el.dataset.id }); break;
       case 'delete-decision': confirmDelete(el.dataset.id); break;
+      case 'log-category': openAdd({ categoryName: el.dataset.name }); break;
+      case 'proof-toggle':
+        ui.proofAll = !ui.proofAll;
+        render();
+        break;
+      case 'reason': {
+        var ask = el.closest('.pulse__ask');
+        commit(function (s) {
+          s.reasons.push({ date: ask.dataset.date, window: ask.dataset.window, answer: el.dataset.answer });
+          s.prompt.ignored = 0;
+        });
+        toast(el.dataset.answer === 'none' ? 'Noted' : 'Noted. It’ll show up in your patterns.');
+        break;
+      }
+      case 'reason-dismiss':
+        commit(function (s) {
+          s.prompt.dismissedOn = ymd(new Date());
+          s.prompt.ignored++;
+        });
+        break;
     }
   });
 
@@ -1909,6 +2177,9 @@
       commit(function (s) { s.settings.startDate = t.value; });
       var day = dayNumber(t.value, new Date());
       toast(day >= 1 ? 'Today is Day ' + day : 'Day 1 starts in ' + (1 - day) + ' ' + plural(1 - day, 'day'));
+    } else if (t.name === 'showWhyOnCard') {
+      commit(function (s) { s.settings.showWhyOnCard = t.checked; });
+      toast(t.checked ? 'Your why will show on the card' : 'Why hidden from the card');
     } else if (t.name === 'signature') {
       commit(function (s) { s.settings.signature = t.value.trim().slice(0, 40); });
     }
