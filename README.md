@@ -45,7 +45,10 @@ no decisions in the last 7 days → every bar is grey
 
 This is a website that runs straight from a folder on your computer. There is no server and nothing to deploy or pay for.
 
-1. On GitHub, click **Code → Download ZIP**, then unzip it somewhere permanent, e.g. `Documents\1000 Decisions`.
+1. **Recommended (auto-updates):** install [Git for Windows](https://git-scm.com/download/win), then in a terminal run
+   `git clone -b claude/adoring-archimedes-zkijke https://github.com/Otabekev/1000decision.git "1000"`
+   in the folder where you want it. `Open 1000 Decisions.bat` then pulls the latest version every time it opens.
+   **Or** click **Code → Download ZIP** and unzip it somewhere permanent (no auto-updates).
 2. **Windows:** double-click **`Open 1000 Decisions.bat`** (or just `index.html`).
    **Mac:** double-click **`Open 1000 Decisions (Mac).command`** (first time: right-click → Open).
 3. Optional, Windows: double-click **`Turn on auto-start (Windows).bat`** and it opens every time you start your PC. `Turn off auto-start (Windows).bat` undoes it.
