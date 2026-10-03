@@ -357,6 +357,7 @@
   }
 
   var ui = {
+    unlocked: (function () { try { return sessionStorage.getItem('td-unlocked') === '1'; } catch (e) { return false; } })(),
     historyFilter: null,
     historyLimit: HISTORY_PAGE,
     openEntries: Object.create(null),
@@ -392,6 +393,10 @@
       patterns: I.patterns(state.categories, state.decisions, now, state.reasons)
     };
   }
+
+  /** Battles and Record are out of sight: Private mode, or a PIN lock not yet opened this session. */
+  function isLocked() { return !!state.lock && !ui.unlocked; }
+  function hiddenNow() { return state.settings.privateMode || isLocked(); }
 
   function catColor(v, name) {
     var c = v.catByName[name];
@@ -639,7 +644,7 @@
     var el = $('#pulse');
     var line = I.topLine(v.patterns, v.now);
     var q = questionFor(v);
-    var ci = state.settings.privateMode ? '' : checkinHtml(v) + reviewDueHtml(v, true);
+    var ci = hiddenNow() ? '' : checkinHtml(v) + reviewDueHtml(v, true);
     if (!line && !q && !ci) {
       el.hidden = true;
       el.innerHTML = '';
@@ -2053,7 +2058,7 @@
       app: '1000-decisions',
       version: 1,
       exportedAt: new Date().toISOString(),
-      data: { categories: state.categories, decisions: state.decisions, settings: state.settings }
+      data: state
     };
     var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     downloadBlob(blob, '1000-decisions-backup-' + ymd(new Date()) + '.json').then(function (ok) {
@@ -2084,6 +2089,7 @@
         danger: true
       }).then(function (ok) {
         if (!ok) return;
+        if (window.TDTrust) window.TDTrust.snapshot('Before import');
         state = next;
         ui.historyFilter = null;
         ui.historyLimit = HISTORY_PAGE;
@@ -2106,6 +2112,7 @@
       danger: true
     }).then(function (ok) {
       if (!ok) return;
+      if (window.TDTrust) window.TDTrust.snapshot('Before erase');
       state.voice.forEach(function (n) { MEDIA.remove(n.id).catch(function () {}); });
       state = defaults();
       ui.historyFilter = null;
@@ -2289,7 +2296,7 @@
   }
 
   function renderBattles(v) {
-    var priv = state.settings.privateMode;
+    var priv = hiddenNow();
     var activeList = BT.active(state.battles);
     var countEl = $('#tab-battles-count');
     countEl.hidden = priv || !activeList.length;
@@ -2297,7 +2304,7 @@
     $('#private-btn').textContent = priv ? 'Private mode: on' : 'Private mode';
     $('#private-btn').setAttribute('aria-pressed', String(priv));
     $('#battles-body').hidden = priv;
-    $('#private-note').hidden = !priv;
+    $('#private-note').hidden = !state.settings.privateMode;
     var sum = BT.summary(state.battles, v.now);
     $('#war-stats').innerHTML = priv
       ? '<div><dt>Battles</dt><dd>—</dd></div>'
@@ -2650,13 +2657,13 @@
   }
 
   function renderRecord(v) {
-    var priv = state.settings.privateMode;
+    var priv = hiddenNow();
     var due = RC.dueReviews(state.bets, v.now);
     var cnt = $('#tab-record-count');
     cnt.hidden = priv || !due.length;
     cnt.textContent = due.length;
     $('#record-body').hidden = priv;
-    $('#record-private').hidden = !priv;
+    $('#record-private').hidden = !state.settings.privateMode;
     var j = RC.judgment(state.bets);
     $('#record-stats').innerHTML = priv ? '<div><dt>Record</dt><dd>—</dd></div>' :
       '<div><dt>Big bets</dt><dd>' + state.bets.length + '</dd></div>' +
@@ -3171,7 +3178,7 @@
       setTheme(THEMES[(THEMES.indexOf(state.settings.theme) + 1) % THEMES.length]);
       return;
     }
-    if ((e.key === 'v' || e.key === 'V') && !state.settings.privateMode) {
+    if ((e.key === 'v' || e.key === 'V') && !hiddenNow()) {
       e.preventDefault();
       openRecorder();
       return;
@@ -3179,7 +3186,7 @@
     if (e.key === 'b' || e.key === 'B') {
       e.preventDefault();
       if (ui.view !== 'battles') setView('battles', true);
-      if (!state.settings.privateMode) openBattleEditor();
+      if (!hiddenNow()) openBattleEditor();
       return;
     }
     if (e.key === 'n' || e.key === 'N' || e.key === '+') {
@@ -3253,6 +3260,8 @@
     addCategory: addCategory,
     findCategory: findCategory,
     downloadBlob: downloadBlob,
+    isLocked: isLocked,
+    hiddenNow: hiddenNow,
     setView: setView,
     hc: hc,
     icon: icon,

@@ -223,7 +223,11 @@ test('edit, delete and undo a decision', async () => {
 });
 
 test('export then import restores the same data', async () => {
-  const { ctx, page } = await open(sample());
+  const data = sample();
+  data.battles = [{ id: 'b1', title: 'Back pain', area: 'Health', weight: 3, step: '', startedAt: new Date().toISOString(), status: 'active', endedAt: null, helped: [], note: '', updates: [] }];
+  data.lessons = [{ id: 'l1', text: 'Small beats heroic', area: 'Mind', pinned: true, at: new Date().toISOString(), source: { type: 'manual' } }];
+  data.letter = { text: 'Sealed words', sealedAt: new Date().toISOString(), openedAt: null, season: 1 };
+  const { ctx, page } = await open(data);
   await page.click('#settings summary');
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('[data-action="export"]')]);
   const file = await download.path();
@@ -240,6 +244,9 @@ test('export then import restores the same data', async () => {
   await page.waitForFunction((key) => JSON.parse(localStorage.getItem(key)).decisions.length === 16, KEY);
   const s = await stored(page);
   assert.deepEqual(s.categories.map((c) => c.name), ['Gym', 'Money', 'Peace', 'Family']);
+  assert.equal(s.battles[0].title, 'Back pain');
+  assert.equal(s.lessons[0].text, 'Small beats heroic');
+  assert.equal(s.letter.text, 'Sealed words');
   await ctx.close();
 });
 
@@ -560,6 +567,83 @@ test('the Book contains every chapter and every decision', async () => {
   assert.equal(await page.evaluate(() => window.__printed), true);
   const text = await page.textContent('#book');
   for (const s of ['The Book', 'What mattered, and why', 'strong at 60', 'The numbers', 'Proof', 'Battles', 'Back pain', 'Firsts', 'First marathon', 'Every decision', '#16']) assert.ok(text.includes(s), 'missing ' + s);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('safety net: daily snapshot, snapshot before erase, one-click restore', async () => {
+  const { ctx, page, errors } = await open(sample());
+  await page.waitForFunction(() => window.TDTrust && window.TDTrust.list().then((l) => l.length === 1));
+  await page.click('#settings summary');
+  await page.click('[data-action="reset"]');
+  await page.click('[data-confirm="ok"]');
+  await page.waitForFunction((key) => JSON.parse(localStorage.getItem(key)).decisions.length === 0, KEY);
+  await page.click('[data-action="snapshots-open"]');
+  await page.waitForSelector('.snap');
+  assert.match(await page.textContent('.snap-list'), /Before erase/);
+  await page.click('.snap:has-text("Before erase") [data-snap]');
+  await page.click('#confirm [data-confirm="ok"]');
+  await page.waitForFunction((key) => JSON.parse(localStorage.getItem(key)).decisions.length === 16, KEY);
+  assert.equal(await page.textContent('#hero-total'), '16');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('folder backup writes latest, weekly and voice files', async () => {
+  const data = sample();
+  data.voice = [{ id: 'v1', title: 'Night before quitting', tag: 'other', at: new Date().toISOString(), duration: 3, mime: 'audio/webm' }];
+  const { ctx, page, errors } = await open(data);
+  const files = await page.evaluate(async () => {
+    await window.TDMedia.put('v1', new Blob(['abc'], { type: 'audio/webm' }));
+    const files = {};
+    function dir(prefix) {
+      return {
+        name: prefix || 'Backups',
+        queryPermission: async () => 'granted',
+        getFileHandle: async (n, o) => { if (!(o && o.create) && !(prefix + n in files)) throw new Error('nf'); return { createWritable: async () => ({ write: async (d) => { files[prefix + n] = typeof d === 'string' ? d.length : d.size; }, close: async () => {} }) }; },
+        getDirectoryHandle: async (n) => dir(prefix + n + '/')
+      };
+    }
+    await window.TDTrust.useFolder(dir(''));
+    return files;
+  });
+  const names = Object.keys(files);
+  assert.ok(names.includes('1000-decisions-latest.json'));
+  assert.ok(names.some((n) => /^weekly\/1000-decisions-\d{4}-W\d{2}\.json$/.test(n)));
+  assert.ok(names.some((n) => /^voice\/.*Night-before-quitting.*\.webm$/.test(n)));
+  assert.ok((await stored(page)).settings.lastBackupAt);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('PIN lock hides Battles and Record until unlocked', async () => {
+  const data = sample();
+  data.battles = [{ id: 'b1', title: 'Secret fight', area: 'Health', weight: 3, step: '', startedAt: new Date().toISOString(), status: 'active', endedAt: null, helped: [], note: '', updates: [] }];
+  const { ctx, page, errors } = await open(data);
+  await page.click('#settings summary');
+  await page.click('[data-action="pin-set"]');
+  await page.fill('.sheet input[name="pin"]', '2468');
+  await page.fill('.sheet input[name="pin2"]', '2469');
+  await page.click('.sheet .add-form button[type="submit"]');
+  assert.match(await page.getAttribute('.sheet input[name="pin2"]', 'class'), /is-invalid/);
+  await page.fill('.sheet input[name="pin2"]', '2468');
+  await page.click('.sheet .add-form button[type="submit"]');
+  await page.waitForFunction(() => !document.getElementById('sheet').open);
+  const s = await stored(page);
+  assert.equal(s.lock.hash.length, 64);
+  assert.ok(!JSON.stringify(s).includes('2468'));
+  await page.click('[data-action="pin-lock-now"]');
+  await page.click('.tab[data-view="battles"]');
+  await page.waitForSelector('#lock-battles:not([hidden])');
+  assert.equal(await page.isVisible('#battles-body'), false);
+  await page.fill('#lock-battles input[name="pin"]', '1111');
+  await page.press('#lock-battles input[name="pin"]', 'Enter');
+  await page.waitForTimeout(200);
+  assert.equal(await page.isVisible('#battles-body'), false);
+  await page.fill('#lock-battles input[name="pin"]', '2468');
+  await page.press('#lock-battles input[name="pin"]', 'Enter');
+  await page.waitForSelector('#battles-body:not([hidden])');
+  assert.match(await page.textContent('#battles-body'), /Secret fight/);
   assert.deepEqual(errors, []);
   await ctx.close();
 });
