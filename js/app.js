@@ -3257,6 +3257,7 @@
     sheetHead: sheetHead,
     openAdd: openAdd,
     openRecorder: openRecorder,
+    playVoice: playVoice,
     addCategory: addCategory,
     findCategory: findCategory,
     downloadBlob: downloadBlob,

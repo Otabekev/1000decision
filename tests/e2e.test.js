@@ -647,3 +647,56 @@ test('PIN lock hides Battles and Record until unlocked', async () => {
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('hard moment shows your own words and makes it the next decision', async () => {
+  const data = sample();
+  data.categories[0].why = 'so I am strong at 60'; // Gym: #1, quiet lately
+  data.lessons = [{ id: 'l1', text: 'Small beats heroic', area: 'Mind', pinned: true, at: new Date().toISOString(), source: { type: 'manual' } }];
+  data.voice = [{ id: 'v1', title: 'After the 10k', tag: 'good', at: new Date().toISOString(), duration: 3, mime: 'audio/webm' }];
+  const { ctx, page, errors } = await open(data, { width: 1280, height: 900 });
+  await page.keyboard.press('h');
+  await page.waitForSelector('.hard');
+  const text = await page.textContent('.hard');
+  assert.match(text, /so I am strong at 60/);
+  assert.match(text, /Small beats heroic/);
+  assert.match(text, /After the 10k/);
+  assert.match(text, /decision #17/);
+  await page.click('.hard [data-hm="log"]');
+  await page.waitForSelector('.hard', { state: 'detached' });
+  await page.fill('input[name="text"]', 'Went for a walk instead');
+  await page.click('.add-form button[type="submit"]');
+  await page.waitForFunction(() => !document.getElementById('sheet').open);
+  const s = await stored(page);
+  assert.equal(s.hardMoments.length, 1);
+  assert.equal(s.hardMoments[0].outcome, 'logged');
+  assert.equal(s.decisions[s.decisions.length - 1].categoryName, 'Gym');
+  // Private mode keeps Record content out of it.
+  await page.click('.tab[data-view="battles"]');
+  await page.click('#private-btn');
+  await page.click('.topbar__hard');
+  assert.doesNotMatch(await page.textContent('.hard'), /Small beats heroic/);
+  await page.click('.hard [data-hm="close"]');
+  assert.equal((await stored(page)).hardMoments[1].outcome, 'closed');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('playbook: chapters, arrow keys, links into the app', async () => {
+  const { ctx, page, errors } = await open(sample(), { width: 1280, height: 900 });
+  await page.click('#playbook-btn');
+  await page.waitForSelector('.playbook');
+  assert.match(await page.textContent('.playbook__title'), /Why a thousand/);
+  await page.keyboard.press('ArrowRight');
+  assert.match(await page.textContent('.playbook__title'), /What counts/);
+  await page.click('.playbook__nav [data-ch="8"]');
+  assert.match(await page.textContent('.playbook__title'), /Fight on paper/);
+  await page.click('.playbook [data-go="view:battles"]');
+  await page.waitForSelector('.playbook', { state: 'detached' });
+  await page.waitForSelector('#view-battles:not([hidden])');
+  await page.keyboard.press('?');
+  await page.waitForSelector('.playbook');
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.playbook', { state: 'detached' });
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

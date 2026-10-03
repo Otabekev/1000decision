@@ -51,7 +51,7 @@
       root.classList.add('is-leaving');
       var r = root;
       root = null;
-      setTimeout(function () { r.remove(); document.documentElement.classList.remove('is-locked'); }, U.reducedMotion() ? 0 : 350);
+      setTimeout(function () { r.remove(); if (!document.querySelector('.td-overlay')) document.documentElement.classList.remove('is-locked'); }, U.reducedMotion() ? 0 : 350);
     }
 
     function progress() {
@@ -122,7 +122,7 @@
           '<p class="ritual__eyebrow">' + new Date().toLocaleDateString(TD.LOCALE, { weekday: 'long', month: 'long', day: 'numeric' }) + '</p>' +
           '<h1 class="ritual__title ritual__title--xl">Day ' + U.fmtNum(TD.derive().day) + '.</h1>' +
           '<p class="ritual__lede">' + (n === 1 ? 'Decision #1 is logged. ' : '') + draft.priorities.length + ' ' + U.plural(draft.priorities.length, 'priority', 'priorities') + ' ranked' + (draft.letter.trim() ? ', a letter sealed' : '') + '. ' + U.fmtNum(left) + ' to go. You don’t need a perfect day, just the next decision.</p>' +
-          '<div class="ritual__actions"><button type="button" class="btn btn--brass btn--lg" data-r="enter">Enter</button></div>';
+          '<div class="ritual__actions"><button type="button" class="btn btn--brass btn--lg" data-r="enter">Enter</button><button type="button" class="btn btn--ghost-light" data-r="enter-playbook">Read the Playbook first · 3 min</button></div>';
       }
       root.innerHTML = '<div class="ritual__inner ritual__inner--' + step + '">' + html + '</div>';
       var focus = root.querySelector('[data-letter], [data-first], [data-why], [name="custom"], [data-r="next"], [data-r="enter"]');
@@ -214,6 +214,7 @@
         finish(true);
       } else if (r === 'finish-skip') finish(false);
       else if (r === 'enter') close();
+      else if (r === 'enter-playbook') { close(); if (window.TDPlaybook) window.TDPlaybook.open(); }
     }
 
     function onKey(e) {
