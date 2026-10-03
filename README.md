@@ -23,7 +23,14 @@ A personal daily accountability tool. You log small acts of discipline ("decisio
 | **+ button** | Pick a category, type "what I did", optionally "what happened as a result", then save. You get an Undo toast. |
 | **History** | Every decision, newest first, grouped by day and filterable by category. Tap an entry to expand it, edit it or delete it. |
 | **Today's card** | Renders a 1080×1920 PNG for an Instagram story: Day N, X/1000, the dot grid, the balance bars and today's standout decision with its result. Download it, or use Share on phones that support it. |
-| **Settings** | Goal, start date, optional signature on the card (e.g. `@yourname`), JSON export/import, and erase. |
+| **Day 1 ritual** | First run is a 3-minute guided setup: rank your priorities, one honest *why* for each, a **sealed letter** to the man who reaches 1000, and your first decision. Ends on "Day 1." Re-run it from Settings. |
+| **Sealed letter** | Lives in the Record tab, sealed with a progress bar. It can't be read until the goal is reached. |
+| **Finale** | At decision 1000: a full-screen "chapter complete" moment, you break the seal and read the letter, then see what the season built. Keep it as **the Book of the Grind** (printable, Save as PDF: priorities and whys, the numbers, proof, battles, big bets, firsts, lessons, letters, every decision) and a **poster** (1800×2400 PNG, one colored square per decision). Then **Season 2**: the goal moves up by one season, a new letter, nothing deleted. Book and poster are also in Settings any time. |
+| **Hard moment** | Press **H** or the Hard moment button when you're about to break. It shows your own words back to you: the *why* of the priority slipping most, a voice note tagged "Good day", a pinned lesson, battles already won. A slow breathing bar and one ask: make it decision N+1. |
+| **Playbook** | The method in 13 short chapters (what counts, ranking, writing the why, quiet days, battles, big bets, the finish line, keeping it safe), each with a button into the part of the app that does it. Book icon in the top bar, or press **?**. |
+| **Safety net** | A snapshot of everything each day you open the app (14 kept) and before every import, erase or restore, with one-click restore. **Folder backup** (Chrome, Edge, desktop app): pick a folder once, ideally in Dropbox / iCloud / OneDrive, and the app keeps `1000-decisions-latest.json`, a weekly copy and your voice notes as audio files there. |
+| **PIN lock** | Optional PIN for Battles and Record, asked once per session. A privacy screen, not encryption. |
+| **Settings** | Goal, start date, optional signature on the card (e.g. `@yourname`), theme, JSON export/import (everything, including battles, record and letters), the Book and poster, safety net, PIN, and erase. |
 
 ## The health algorithm
 
@@ -61,6 +68,30 @@ This is a website that runs straight from a folder on your computer. There is no
 
 Developers can also serve it: `npm start` (http://localhost:8080).
 
+## Desktop app (Windows and macOS)
+
+`desktop/` wraps the same app in Electron: its own window and icon, an installer, **Open at login**, the microphone for voice notes, and **automatic updates**.
+
+- Try it: `npm run desktop` (installs Electron the first time).
+- Build an installer on your machine: `npm run desktop:build` → `desktop/dist/`.
+- Release: bump `version` in `desktop/package.json`, then `git tag v1.0.1 && git push origin v1.0.1`. The **Desktop app** GitHub Action builds the Windows installer and the Mac app and attaches them to a GitHub Release. Installed apps find the update on their own and install it on the next restart.
+
+Things to know:
+- **Auto-updates read GitHub Releases, so the releases must be public.** Keep this repo private if you want, and publish releases to a separate public repo (change `publish.repo` in `desktop/package.json`).
+- **Code signing** is optional but recommended for selling. Unsigned, Windows shows a SmartScreen "unknown publisher" warning and macOS needs right-click → Open. Signed macOS apps are also required for macOS auto-updates. Add the certificates as repository secrets (`CSC_LINK`, `CSC_KEY_PASSWORD`, and for Mac `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`); the workflow already uses them.
+- The desktop app has its own storage. Move your data with **Export JSON** in the browser and **Import JSON** in the app.
+
+## Selling it (license key + free trial)
+
+Off by default: the app is free and unlimited. To sell it, edit [`js/config.js`](js/config.js):
+
+1. Create a [Lemon Squeezy](https://www.lemonsqueezy.com) store and a product; turn on **license keys** for it (activation limit, e.g. 3 computers).
+2. Fill in `buyUrl` (the checkout link), `storeId`, `productId` and `price`, and set `enabled: true`.
+
+Then: a free trial (14 days by default, counted from the first decision) → a calm "Keep going" screen with **Get a license** and a key field. After the trial the data stays readable and exportable; only creating new entries needs a key. Keys are validated against Lemon Squeezy (from the main process in the desktop app), re-checked weekly, and keep working offline for 30 days. The key is stored apart from your data, so backups never contain it. **Settings → License** shows the status and can move the license to another computer.
+
+Honest limit: a check that runs on the customer's computer can be bypassed by someone who edits the files. It keeps honest people honest, which is the market for a one-time purchase.
+
 ## Data format
 
 One `localStorage` key, `thousand-decisions:v1`:
@@ -73,6 +104,8 @@ One `localStorage` key, `thousand-decisions:v1`:
   "settings": { "goal": 1000, "startDate": "2026-09-17", "signature": "@yourname", "lastBackupAt": null }
 }
 ```
+
+Newer fields sit next to these: `battles`, `checkins`, `bets`, `firsts`, `lessons`, `voice` (metadata; audio stays in IndexedDB), `letter`, `seasons`, `hardMoments`, `onboarded`, `lock` (salted PIN hash) and `reasons`.
 
 Exports wrap the same data as `{ "app": "1000-decisions", "version": 1, "exportedAt": "…", "data": { … } }`. Imports accept either shape, and every field is validated before it replaces anything.
 
@@ -87,7 +120,16 @@ js/record.js            big bets reviews, judgment, firsts, lessons (pure, unit-
 js/media.js             private audio storage for voice notes (IndexedDB)
 js/insights.js          proof totals and rhythm/quiet-period patterns (pure, unit-tested)
 js/card.js              Instagram card renderer (Canvas 2D, no dependencies)
-js/app.js               state, rendering, interactions
+js/app.js               state, rendering, interactions (exposes window.TD for the modules below)
+js/onboarding.js        Day 1 ritual and the sealed letter
+js/finale.js            finale at the goal, the Book, the poster, seasons
+js/trust.js             snapshots, folder backup, PIN lock
+js/playbook.js          the Playbook and the Hard moment
+js/desktop.js           desktop-app extras (version, updates, open at login)
+js/license.js           license key and trial (off unless enabled in js/config.js)
+js/config.js            product settings: license on/off, price, store
+desktop/                Electron shell, installer config (electron-builder)
+.github/workflows/      desktop build and release
 sw.js                   offline cache (bump VERSION when shipping changes)
 manifest.webmanifest    install metadata
 css/fonts.css           fonts embedded as data URIs (so it works from file://)
@@ -99,9 +141,10 @@ tests/                  unit tests + Playwright end-to-end tests
 ## Tests
 
 ```bash
-npm test             # health algorithm (Node's built-in test runner, no install needed)
+npm test             # pure modules: health, insights, battles, record (no install needed)
 npm install          # installs Playwright for the end-to-end tests
 npm run test:e2e     # drives the real page in Chromium
+npm run test:desktop # launches the packaged desktop app (build it first with --dir)
 ```
 
 ## Credits

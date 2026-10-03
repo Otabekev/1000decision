@@ -700,3 +700,66 @@ test('playbook: chapters, arrow keys, links into the app', async () => {
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('license: off by default; when on, trial then paywall, browse, activate', async () => {
+  // Off by default: nothing shows.
+  let r = await open(sample());
+  assert.equal(await r.page.evaluate(() => window.TDLicense.enabled), false);
+  assert.equal(await r.page.$('.paywall'), null);
+  await r.ctx.close();
+
+  // On, trial over (oldest decision is ~17 days old).
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+  await ctx.addInitScript(([key, d]) => {
+    window.TD_CONFIG = { license: { enabled: true, trialDays: 14, price: '$49', buyUrl: 'https://example.com/buy', storeId: 111, productId: 222 } };
+    if (!sessionStorage.getItem('seeded')) { localStorage.setItem(key, JSON.stringify(d)); sessionStorage.setItem('seeded', '1'); }
+  }, [KEY, sample()]);
+  const calls = [];
+  await ctx.route('https://api.lemonsqueezy.com/**', async (route) => {
+    const body = new URLSearchParams(route.request().postData());
+    calls.push([route.request().url().split('/').pop(), body.get('license_key')]);
+    const good = body.get('license_key') === 'GOOD-KEY-123456';
+    const wrongStore = body.get('license_key') === 'OTHER-STORE';
+    await route.fulfill({
+      status: good || wrongStore ? 200 : 400,
+      headers: { 'access-control-allow-origin': '*', 'content-type': 'application/json' },
+      body: JSON.stringify(good || wrongStore
+        ? { activated: true, instance: { id: 'inst-1' }, meta: { store_id: wrongStore ? 999 : 111, product_id: 222, customer_name: 'Otabek' } }
+        : { activated: false, error: 'This license key was not found.' })
+    });
+  });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(base);
+  await page.waitForSelector('.paywall');
+  assert.match(await page.textContent('.paywall'), /16 decisions in/);
+  // Browse read-only, then try to log → the paywall returns.
+  await page.click('.paywall [data-paywall="browse"]');
+  await page.waitForSelector('.paywall', { state: 'detached' });
+  assert.equal(await page.textContent('#hero-total'), '16');
+  await page.keyboard.press('n');
+  await page.waitForSelector('.paywall');
+  assert.equal(await page.evaluate(() => document.getElementById('sheet').open), false);
+  // Wrong key, key from another store, then the right one.
+  await page.fill('.paywall input[name="key"]', 'NOPE');
+  await page.click('.paywall button[type="submit"]');
+  await page.waitForFunction(() => /not found/.test(document.querySelector('.paywall__msg').textContent));
+  await page.fill('.paywall input[name="key"]', 'OTHER-STORE');
+  await page.click('.paywall button[type="submit"]');
+  await page.waitForFunction(() => /different product/.test(document.querySelector('.paywall__msg').textContent));
+  await page.fill('.paywall input[name="key"]', 'GOOD-KEY-123456');
+  await page.click('.paywall button[type="submit"]');
+  await page.waitForSelector('.paywall', { state: 'detached' });
+  assert.equal(await page.evaluate(() => window.TDLicense.licensed()), true);
+  // The key is not part of exported data.
+  assert.ok(!(await page.evaluate((k) => localStorage.getItem(k), KEY)).includes('GOOD-KEY'));
+  await page.reload();
+  await page.waitForSelector('#hero-total');
+  await page.waitForTimeout(300);
+  assert.equal(await page.$('.paywall'), null);
+  assert.match(await page.textContent('#license-settings'), /Licensed to Otabek/);
+  assert.deepEqual(calls.map((c) => c[0]), ['activate', 'activate', 'activate']);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

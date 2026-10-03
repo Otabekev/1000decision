@@ -1510,3 +1510,19 @@ textarea.ritual__letter, .ritual__letter {
 @media (max-width: 760px) {
   .playbook__close { top: 8px; right: 6px; background: var(--surface-2); box-shadow: -14px 0 12px -2px var(--surface-2); }
 }
+
+/* ── License ─────────────────────────────────────────────────────────── */
+
+.paywall {
+  position: fixed; inset: 0; z-index: 97; overflow-y: auto;
+  background: var(--hero-bg); color: #fff;
+  background-image: radial-gradient(90% 70% at 85% 0%, rgba(176, 141, 60, 0.18), transparent 60%);
+  display: grid; place-items: center; padding: 48px var(--gutter);
+}
+.paywall__form, .license__form { display: flex; gap: 8px; max-width: 460px; }
+.paywall .input { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.22); color: #fff; font-family: ui-monospace, Consolas, monospace; font-size: 15px; }
+.paywall__msg { min-height: 1.4em; color: #FF8A80; font-size: 14px; }
+.paywall .link-btn { color: rgba(255, 255, 255, 0.75); }
+.license__form .input { font-family: ui-monospace, Consolas, monospace; font-size: 14px; }
+.license__msg { color: var(--red-ink); min-height: 1.2em; margin: 6px 0 8px; }
+.paywall .link-btn, .ritual__hint .link-btn { padding: 0 2px; font-size: inherit; }
