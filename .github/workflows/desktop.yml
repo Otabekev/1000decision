@@ -39,15 +39,14 @@ jobs:
 
       - name: Build installers
         working-directory: desktop
-        run: npx electron-builder --publish never
+        shell: bash
+        run: ../.github/scripts/build-desktop.sh never
         env:
-          # Optional code signing. Leave unset to build unsigned.
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
+          S_CSC_LINK: ${{ secrets.CSC_LINK }}
+          S_CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          S_APPLE_ID: ${{ secrets.APPLE_ID }}
+          S_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          S_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       # Windows: install silently the way a customer would (per-user, no
       # admin prompt), then launch the installed app and use it.
@@ -56,9 +55,15 @@ jobs:
         shell: pwsh
         run: |
           $setup = Get-ChildItem desktop/dist -Filter '1000-Decisions-Setup-*.exe' | Select-Object -First 1
+          Write-Host "Installing $($setup.Name) ($([math]::Round($setup.Length / 1MB)) MB)"
           Start-Process -FilePath $setup.FullName -ArgumentList '/S' -Wait
-          $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter '1000 Decisions.exe' | Select-Object -First 1
-          if (-not $exe) { throw 'Installed app not found' }
+          $exe = $null
+          for ($i = 0; $i -lt 60 -and -not $exe; $i++) {
+            $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter '1000 Decisions.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $exe) { Start-Sleep -Seconds 1 }
+          }
+          if (-not $exe) { Get-ChildItem "$env:LOCALAPPDATA\Programs" -ErrorAction SilentlyContinue; throw 'Installed app not found' }
+          Get-Process | Where-Object { $_.ProcessName -like '1000*' } | Stop-Process -Force -ErrorAction SilentlyContinue
           Write-Host "Installed at $($exe.FullName)"
           if (-not (Test-Path "$env:USERPROFILE\Desktop\1000 Decisions.lnk") -and -not (Test-Path "$env:PUBLIC\Desktop\1000 Decisions.lnk")) { Write-Warning 'Desktop shortcut not found' }
           $env:EXE = $exe.FullName
@@ -75,15 +80,15 @@ jobs:
       - name: Publish the release
         if: startsWith(github.ref, 'refs/tags/v')
         working-directory: desktop
-        run: npx electron-builder --publish always
+        shell: bash
+        run: ../.github/scripts/build-desktop.sh always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
+          S_CSC_LINK: ${{ secrets.CSC_LINK }}
+          S_CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          S_APPLE_ID: ${{ secrets.APPLE_ID }}
+          S_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          S_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - uses: actions/upload-artifact@v4
         with:
