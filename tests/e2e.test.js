@@ -763,3 +763,21 @@ test('license: off by default; when on, trial then paywall, browse, activate', a
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('first run: bring in a backup instead of setting up', async () => {
+  const file = path.join(require('os').tmpdir(), 'td-backup-' + Date.now() + '.json');
+  fs.writeFileSync(file, JSON.stringify({ app: '1000-decisions', version: 1, data: sample() }));
+  const { ctx, page, errors } = await open(null);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click('.ritual [data-r="import"]')]);
+  await chooser.setFiles(file);
+  await page.click('#confirm [data-confirm="ok"]');
+  await page.waitForSelector('.ritual', { state: 'detached' });
+  assert.equal(await page.textContent('#hero-total'), '16');
+  const s = await stored(page);
+  assert.equal(s.onboarded, true);
+  await page.reload();
+  await page.waitForSelector('#hero-total');
+  assert.equal(await page.$('.ritual'), null);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

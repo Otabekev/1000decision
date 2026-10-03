@@ -23,8 +23,11 @@
   "build": {
     "appId": "app.thousanddecisions.desktop",
     "productName": "1000 Decisions",
-    "copyright": "Copyright © 2026",
-    "directories": { "output": "dist", "buildResources": "build" },
+    "copyright": "Copyright \u00a9 2026",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
     "files": [
       "main.js",
       "preload.js",
@@ -32,28 +35,71 @@
       {
         "from": "..",
         "to": "app",
-        "filter": ["index.html", "manifest.webmanifest", "css/**", "js/**", "fonts/**", "icons/**"]
+        "filter": [
+          "index.html",
+          "manifest.webmanifest",
+          "css/**",
+          "js/**",
+          "fonts/**",
+          "icons/**"
+        ]
       }
     ],
-    "publish": [{ "provider": "github", "owner": "Otabekev", "repo": "1000decision", "releaseType": "release" }],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Otabekev",
+        "repo": "1000decision",
+        "releaseType": "release"
+      }
+    ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "artifactName": "1000-Decisions-Setup-${version}.${ext}"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
+      "runAfterFinish": true,
+      "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "1000 Decisions"
+      "shortcutName": "1000 Decisions",
+      "uninstallDisplayName": "1000 Decisions",
+      "deleteAppDataOnUninstall": false
     },
     "mac": {
       "category": "public.app-category.productivity",
-      "target": [{ "target": "dmg", "arch": ["universal"] }, { "target": "zip", "arch": ["universal"] }],
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
       "artifactName": "1000-Decisions-${version}-mac.${ext}",
-      "extendInfo": { "NSMicrophoneUsageDescription": "1000 Decisions records voice notes only when you press record." }
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "1000 Decisions records voice notes only when you press record."
+      }
     },
-    "linux": { "target": ["AppImage"], "category": "Utility" }
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility"
+    }
   }
 }

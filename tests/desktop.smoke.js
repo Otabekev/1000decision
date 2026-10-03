@@ -11,13 +11,23 @@ const fs = require('fs');
 const os = require('os');
 const assert = require('assert/strict');
 
-const dist = path.join(__dirname, '..', 'desktop', 'dist');
-const dir = fs.readdirSync(dist).find((d) => /unpacked$/.test(d));
-const exe = path.join(dist, dir, process.platform === 'win32' ? '1000 Decisions.exe' : '1000-decisions-desktop');
+// EXE=<path> tests an installed copy; otherwise the unpacked build in desktop/dist.
+function findExe() {
+  if (process.env.EXE) return process.env.EXE;
+  const dist = path.join(__dirname, '..', 'desktop', 'dist');
+  const dirs = fs.readdirSync(dist);
+  if (process.platform === 'darwin') {
+    const d = dirs.find((x) => /^mac/.test(x) && fs.existsSync(path.join(dist, x, '1000 Decisions.app')));
+    return path.join(dist, d, '1000 Decisions.app', 'Contents', 'MacOS', '1000 Decisions');
+  }
+  const d = dirs.find((x) => /unpacked$/.test(x));
+  return path.join(dist, d, process.platform === 'win32' ? '1000 Decisions.exe' : '1000-decisions-desktop');
+}
+const exe = findExe();
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'td-desktop-'));
 
 async function launch() {
-  const app = await electron.launch({ executablePath: exe, args: ['--no-sandbox', '--user-data-dir=' + userData] });
+  const app = await electron.launch({ executablePath: exe, args: (process.platform === 'linux' ? ['--no-sandbox'] : []).concat(['--user-data-dir=' + userData]) });
   const page = await app.firstWindow();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));

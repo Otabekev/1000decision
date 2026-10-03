@@ -72,7 +72,8 @@
           '<p class="ritual__lede">No goals to fail, no streaks to break. You log the small acts of discipline you actually make, and you watch what they turn you into.</p>' +
           '<p class="ritual__lede">The next three minutes are Day 1.</p>' +
           '<div class="ritual__actions"><button type="button" class="btn btn--brass btn--lg" data-r="next">Begin</button>' +
-          '<button type="button" class="btn btn--ghost-light" data-r="skip">I’ll set it up myself</button></div>';
+          '<button type="button" class="btn btn--ghost-light" data-r="skip">I’ll set it up myself</button></div>' +
+          '<p class="ritual__hint">Already using 1000 Decisions in a browser? <button type="button" class="link-btn" data-r="import">Bring in your backup file</button></p>';
       } else if (step === 'priorities') {
         var used = draft.priorities.map(function (p) { return p.toLowerCase(); });
         html = progress() +
@@ -189,6 +190,10 @@
       else if (r === 'skip') {
         TD.commit(function (s) { s.onboarded = true; });
         close();
+      } else if (r === 'import') {
+        importing = true;
+        var f = document.getElementById('import-file');
+        if (f) f.click();
       } else if (r === 'pick') addPriority(b.dataset.name);
       else if (r === 'up' || r === 'down') {
         var i = +b.dataset.i, j = i + (r === 'up' ? -1 : 1);
@@ -227,6 +232,16 @@
       e.preventDefault();
       var input = e.target.elements.namedItem('custom');
       addPriority(input.value);
+    });
+
+    // An imported backup with data replaces the setup.
+    var importing = false;
+    TD.onRender(function () {
+      if (importing && root && TD.state.decisions.length) {
+        importing = false;
+        if (!TD.state.onboarded) { TD.state.onboarded = true; TD.save(); }
+        close();
+      }
     });
 
     if (!TD.state.onboarded) open();
