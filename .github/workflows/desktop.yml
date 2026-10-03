@@ -56,13 +56,17 @@ jobs:
         run: |
           $setup = Get-ChildItem desktop/dist -Filter '1000-Decisions-Setup-*.exe' | Select-Object -First 1
           Write-Host "Installing $($setup.Name) ($([math]::Round($setup.Length / 1MB)) MB)"
-          Start-Process -FilePath $setup.FullName -ArgumentList '/S' -Wait
+          $t0 = Get-Date
+          $proc = Start-Process -FilePath $setup.FullName -ArgumentList '/S' -Wait -PassThru
+          Write-Host "Installer exited with code $($proc.ExitCode) after $([math]::Round(((Get-Date) - $t0).TotalSeconds)) s"
           $exe = $null
-          for ($i = 0; $i -lt 60 -and -not $exe; $i++) {
+          for ($i = 0; $i -lt 240 -and -not $exe; $i++) {
             $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter '1000 Decisions.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
             if (-not $exe) { Start-Sleep -Seconds 1 }
           }
-          if (-not $exe) { Get-ChildItem "$env:LOCALAPPDATA\Programs" -ErrorAction SilentlyContinue; throw 'Installed app not found' }
+          if (-not $exe) { Get-ChildItem "$env:LOCALAPPDATA\Programs" -ErrorAction SilentlyContinue; Get-Process | Where-Object { $_.ProcessName -match '1000|Setup|nsis|Un_' } | Format-Table -AutoSize; throw 'Installed app not found' }
+          Write-Host "App present after $([math]::Round(((Get-Date) - $t0).TotalSeconds)) s"
+          Start-Sleep -Seconds 5
           Get-Process | Where-Object { $_.ProcessName -like '1000*' } | Stop-Process -Force -ErrorAction SilentlyContinue
           Write-Host "Installed at $($exe.FullName)"
           if (-not (Test-Path "$env:USERPROFILE\Desktop\1000 Decisions.lnk") -and -not (Test-Path "$env:PUBLIC\Desktop\1000 Decisions.lnk")) { Write-Warning 'Desktop shortcut not found' }
