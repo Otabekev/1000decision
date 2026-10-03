@@ -1276,7 +1276,7 @@
     sheetCloseTimer = setTimeout(function () {
       sheetClosing = false;
       sheetEl.close();
-      document.documentElement.classList.remove('is-locked');
+      if (!confirmEl.open && !document.querySelector('.td-overlay')) document.documentElement.classList.remove('is-locked');
       sheetBody.innerHTML = '';
       if (sheetReturnFocus && document.contains(sheetReturnFocus)) {
         try { sheetReturnFocus.focus({ preventScroll: true }); } catch (e) {}
@@ -1370,7 +1370,7 @@
         confirmEl.classList.remove('is-open');
         setTimeout(function () {
           confirmEl.close();
-          if (!sheetEl.open) document.documentElement.classList.remove('is-locked');
+          if (!sheetEl.open && !document.querySelector('.td-overlay')) document.documentElement.classList.remove('is-locked');
           resolve(ok ? data : null);
         }, reducedMotion() ? 0 : 300);
       }
@@ -2110,7 +2110,7 @@
   function resetAll() {
     confirmDialog({
       title: 'Erase everything?',
-      text: 'All ' + state.decisions.length + ' decisions, your categories and settings will be deleted from this device. Export a backup first if you might want them back.',
+      text: 'All ' + state.decisions.length + ' decisions, your categories and settings will be deleted from this device. A snapshot is kept in Settings for 14 days so you can undo this, but voice recordings are deleted for good.',
       okLabel: 'Erase all',
       danger: true
     }).then(function (ok) {
@@ -2287,7 +2287,7 @@
     }).join('') + '</div>';
   }
 
-  var VIEWS = ['decisions', 'battles', 'record'];
+  var VIEWS = ['decisions', 'calendar', 'battles', 'record'];
   function applyView() {
     var battles = ui.view === 'battles';
     VIEWS.forEach(function (name) { $('#view-' + name).hidden = ui.view !== name; });
@@ -3196,6 +3196,23 @@
       e.preventDefault();
       openAdd();
     }
+  });
+
+  // Full-screen overlays keep keyboard focus, so Escape and arrows keep working after a click.
+  document.addEventListener('mousedown', function (e) {
+    var o = e.target.closest && e.target.closest('.td-overlay');
+    if (!o || e.target.closest('input, textarea, select, button, a, [tabindex]:not(.td-overlay)')) return;
+    if (!o.hasAttribute('tabindex')) o.tabIndex = -1;
+    setTimeout(function () { o.focus({ preventScroll: true }); }, 0);
+  }, true);
+
+  // Dropping a backup file anywhere imports it (instead of the browser opening the file).
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('drop', function (e) {
+    e.preventDefault();
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f && /\.json$/i.test(f.name)) importData(f);
+    else if (f) toast('Drop a 1000 Decisions backup (.json) to import it.', { tone: 'error' });
   });
 
   // Other tabs / windows

@@ -781,3 +781,64 @@ test('first run: bring in a backup instead of setting up', async () => {
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('calendar fills itself from decisions; no way to add anything', async () => {
+  const data = sample();
+  data.firsts = [{ id: 'f1', title: 'First 5am start', area: 'Gym', date: new Date(Date.now() - 3600e3).toISOString().slice(0, 10), note: '' }];
+  const { ctx, page, errors } = await open(data, { width: 1280, height: 900 });
+  await page.click('.tab[data-view="calendar"]');
+  await page.waitForSelector('.cal-week');
+  const thisWeek = await page.evaluate(() => {
+    const d = new Date(); const start = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+    return window.TD.state.decisions.filter((x) => Date.parse(x.timestamp) >= start.getTime()).length;
+  });
+  assert.equal(await page.locator('.cal-ev').count(), thisWeek);
+  assert.match(await page.textContent('.cal-review'), new RegExp(thisWeek + ' decision'));
+  assert.equal(await page.locator('#view-calendar input, #view-calendar textarea').count(), 0);
+  // Previous week, then month view, then a day back into its week.
+  await page.keyboard.press('ArrowLeft');
+  await page.click('[data-cal-mode="month"]');
+  await page.waitForSelector('.cal-mgrid');
+  const total = await page.$$eval('.cal-cell:not(.is-out) .cal-cell__n', (els) => els.reduce((s, e) => s + +e.textContent, 0));
+  assert.ok(total > 0);
+  assert.equal(await page.locator('.cal-cell.is-future .cal-cell__n').count(), 0);
+  await page.click('[data-cal="today"]');
+  await page.click('.cal-cell.is-today');
+  await page.waitForSelector('.cal-week');
+  // A block opens the decision itself.
+  if (thisWeek) {
+    await page.click('.cal-ev >> nth=0');
+    await page.waitForFunction(() => document.getElementById('sheet').open);
+  }
+  // Phones get an agenda list.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.keyboard.press('Escape');
+  assert.equal(await page.isVisible('.cal-agenda'), true);
+  assert.equal(await page.isVisible('.cal-grid'), false);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('setting a PIN keeps this session unlocked; Escape works after clicking an overlay', async () => {
+  const data = sample();
+  data.battles = [{ id: 'b1', title: 'Visible fight', area: 'Health', weight: 3, step: '', startedAt: new Date().toISOString(), status: 'active', endedAt: null, helped: [], note: '', updates: [] }];
+  const { ctx, page, errors } = await open(data, { width: 1280, height: 900 });
+  await page.click('#settings summary');
+  await page.click('[data-action="pin-set"]');
+  await page.fill('.sheet input[name="pin"]', '2468');
+  await page.fill('.sheet input[name="pin2"]', '2468');
+  await page.click('.sheet .add-form button[type="submit"]');
+  await page.waitForFunction(() => !document.getElementById('sheet').open);
+  await page.click('.tab[data-view="battles"]');
+  await page.waitForSelector('#view-battles:not([hidden])');
+  assert.equal(await page.isVisible('#battles-body'), true);
+  assert.equal(await page.isVisible('#lock-battles'), false);
+  await page.keyboard.press('?');
+  await page.waitForSelector('.playbook');
+  await page.click('.playbook__page', { position: { x: 20, y: 300 } });
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.playbook', { state: 'detached' });
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains('is-locked')), false);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

@@ -4,7 +4,7 @@
  * Strategy: serve from cache, refresh the cache in the background.
  * Bump VERSION when shipping changes that must replace old caches.
  */
-var VERSION = 'td-v6';
+var VERSION = 'td-v7';
 var ASSETS = [
   './',
   './index.html',
@@ -21,6 +21,7 @@ var ASSETS = [
   './js/finale.js',
   './js/trust.js',
   './js/playbook.js',
+  './js/calendar.js',
   './js/desktop.js',
   './js/license.js',
   './css/fonts.css',

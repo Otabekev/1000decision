@@ -33,6 +33,7 @@
       </a>
       <nav class="tabs" aria-label="Views">
         <a class="tab" href="#decisions" data-view="decisions" aria-current="page">Decisions</a>
+        <a class="tab" href="#calendar" data-view="calendar">Calendar</a>
         <a class="tab" href="#battles" data-view="battles">Battles<span class="tab__count" id="tab-battles-count" hidden></span></a>
         <a class="tab" href="#record" data-view="record">Record<span class="tab__count" id="tab-record-count" hidden></span></a>
       </nav>
@@ -270,6 +271,11 @@
 
     </div>
 
+    <!-- Calendar: fills itself from decisions already made -->
+    <div class="view" id="view-calendar" hidden>
+      <div id="calendar-root"></div>
+    </div>
+
     <!-- Battles -->
     <div class="view" id="view-battles" hidden>
       <section class="war" id="war-hero" aria-labelledby="war-title">
@@ -450,6 +456,7 @@
   <script src="js/finale.js"></script>
   <script src="js/trust.js"></script>
   <script src="js/playbook.js"></script>
+  <script src="js/calendar.js"></script>
   <script src="js/desktop.js"></script>
   <script src="js/license.js"></script>
 </body>
