@@ -430,3 +430,19 @@ test('closing a battle can save its note as a lesson; private mode hides Record'
   assert.equal(await page.isVisible('#record-private'), true);
   await ctx.close();
 });
+
+test('themes: switch with T and from settings; saved and applied on reload', async () => {
+  const { ctx, page, errors } = await open(sample());
+  assert.equal(await page.getAttribute('html', 'data-theme'), null);
+  await page.keyboard.press('t');
+  assert.equal(await page.getAttribute('html', 'data-theme'), 'carbon');
+  await page.click('#settings summary');
+  await page.click('.theme-opt[data-theme="terminal"]');
+  assert.equal(await page.getAttribute('html', 'data-theme'), 'terminal');
+  assert.equal((await stored(page)).settings.theme, 'terminal');
+  await page.reload();
+  await page.waitForSelector('#hero-total');
+  assert.equal(await page.getAttribute('html', 'data-theme'), 'terminal');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

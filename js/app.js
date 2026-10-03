@@ -15,6 +15,9 @@
   var BT = window.TDBattles;
   var RC = window.TDRecord;
   var MEDIA = window.TDMedia;
+  var THEMES = ['stone', 'carbon', 'terminal'];
+  var THEME_LABEL = { stone: 'Stone', carbon: 'Carbon', terminal: 'Terminal' };
+  var THEME_BG = { stone: '#F3F2EF', carbon: '#0E1012', terminal: '#050604' };
   var VOICE_TAGS = [['good', 'Good day'], ['hard', 'Hard day'], ['big', 'Big moment'], ['other', 'Other']];
   var Card = window.TDCard;
 
@@ -124,7 +127,7 @@
       version: 1,
       categories: [],
       decisions: [],
-      settings: { goal: 1000, startDate: ymd(new Date()), signature: '', lastBackupAt: null, showWhyOnCard: false, privateMode: false, checkinDays: 14 },
+      settings: { goal: 1000, startDate: ymd(new Date()), signature: '', lastBackupAt: null, showWhyOnCard: false, privateMode: false, checkinDays: 14, theme: 'stone' },
       // One-tap answers to "What pulled you away?" and when the question was last shown.
       reasons: [],
       prompt: { lastAsked: null, ignored: 0, pausedUntil: null },
@@ -163,6 +166,7 @@
     out.settings.lastBackupAt = typeof s.lastBackupAt === 'string' ? s.lastBackupAt : null;
     out.settings.showWhyOnCard = s.showWhyOnCard === true;
     out.settings.privateMode = s.privateMode === true;
+    out.settings.theme = THEMES.indexOf(s.theme) !== -1 ? s.theme : 'stone';
     out.settings.checkinDays = [14, 30].indexOf(+s.checkinDays) !== -1 ? +s.checkinDays : 14;
 
     if (Array.isArray(src.battles)) {
@@ -424,6 +428,7 @@
     renderBattles(v);
     renderRecord(v);
     renderSettings();
+    applyTheme();
     scheduleThumb();
     $('.fab').classList.toggle('is-attn', v.today === 0 && state.categories.length > 0);
   }
@@ -555,8 +560,8 @@
     });
     var avg7 = v.health.total7 / 7;
     if (avg7 > 0) {
-      out.push('<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(avg7).toFixed(1) + '" y2="' + y(avg7).toFixed(1) + '" stroke="#B08D3C" stroke-width="2" stroke-dasharray="6 4"/>');
-      out.push('<text x="' + (W - R) + '" y="' + (y(avg7) - 6).toFixed(1) + '" text-anchor="end" style="fill:#8C6A24;font-weight:700">7-day avg ' + avg7.toFixed(1) + '</text>');
+      out.push('<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(avg7).toFixed(1) + '" y2="' + y(avg7).toFixed(1) + '" style="stroke:var(--gold)" stroke-width="2" stroke-dasharray="6 4"/>');
+      out.push('<text x="' + (W - R) + '" y="' + (y(avg7) - 6).toFixed(1) + '" text-anchor="end" style="fill:var(--gold-ink);font-weight:700">7-day avg ' + avg7.toFixed(1) + '</text>');
     }
     daily.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + CH + '" role="img" aria-label="Decisions per day for the last 30 days, stacked by category">' + out.join('') + '</svg>' +
       '<div class="chart__legend">' + state.categories.map(function (c) { return '<span><i style="background:' + c.color + '"></i>' + esc(c.name) + '</span>'; }).join('') + '</div>';
@@ -569,7 +574,7 @@
     var top = Math.min(1, Math.max.apply(null, v.health.list.map(function (h) { return Math.max(h.actualShare, h.targetShare * H.BAND_HIGH); })) * 1.1);
     share.innerHTML = '<div class="share-rows">' + state.categories.map(function (c) {
       var h = v.health.byName[c.name];
-      var col = H.colorsFor(h);
+      var col = hc(h);
       return '<div class="share-row" style="--c:' + c.color + ';--fill:' + col.fill + '">' +
         '<div class="share-row__head"><span><i></i><b>' + esc(c.name) + '</b></span><em>' + pct(h.actualShare) + ' <span style="color:var(--ink-4);font-weight:600">/ ' + pct(h.targetShare) + '</span></em></div>' +
         '<div class="share-row__track"><div class="share-row__fill" style="width:' + ((h.actualShare / top) * 100).toFixed(1) + '%"></div><div class="share-row__target" style="left:' + ((h.targetShare / top) * 100).toFixed(1) + '%"></div></div>' +
@@ -683,12 +688,12 @@
       for (var h = H0; h < 24; h++) {
         var n = row[h];
         var a = n ? 0.15 + 0.85 * (n / max) : 0;
-        out.push('<rect x="' + (left + (h - H0) * (cw + gap)) + '" y="' + (top + r * (ch + gap)) + '" width="' + cw + '" height="' + ch + '" rx="2" fill="' + (n ? 'rgba(17,19,21,' + a.toFixed(2) + ')' : 'var(--surface-3)') + '"><title>' + days[r] + ' ' + I.hourLabel(h) + ': ' + n + '</title></rect>');
+        out.push('<rect x="' + (left + (h - H0) * (cw + gap)) + '" y="' + (top + r * (ch + gap)) + '" width="' + cw + '" height="' + ch + '" rx="2" style="fill:' + (n ? 'var(--ink);fill-opacity:' + a.toFixed(2) : 'var(--surface-3)') + '"><title>' + days[r] + ' ' + I.hourLabel(h) + ': ' + n + '</title></rect>');
       }
     });
     if (pt.strongest && pt.ready) {
       var sx = left + (Math.max(H0, pt.strongest.start) - H0) * (cw + gap) - 2;
-      out.push('<rect x="' + sx + '" y="' + (top - 2) + '" width="' + (3 * (cw + gap) + 1) + '" height="' + (7 * (ch + gap) + 1) + '" fill="none" stroke="#B08D3C" stroke-width="2.5" rx="3"/>');
+      out.push('<rect x="' + sx + '" y="' + (top - 2) + '" width="' + (3 * (cw + gap) + 1) + '" height="' + (7 * (ch + gap) + 1) + '" fill="none" style="stroke:var(--gold)" stroke-width="2.5" rx="3"/>');
     }
     [6, 9, 12, 15, 18, 21].forEach(function (h) {
       out.push('<text x="' + (left + (h - H0) * (cw + gap)) + '" y="' + (Hh - 4) + '">' + I.hourLabel(h) + '</text>');
@@ -749,13 +754,14 @@
         var cls = [];
         if (opts.justAdded && d.id === opts.justAdded) cls.push('pop');
         var isToday = dayIndex(new Date(d.timestamp)) === todayIdx;
-        out.push('<rect x="' + (cx - r) + '" y="' + (cy - r) + '" width="' + (2 * r) + '" height="' + (2 * r) + '" rx="0.6" fill="' + (isToday ? DOT_TODAY : DOT_INK) + '"' + (cls.length ? ' class="' + cls.join(' ') + '"' : '') + '/>');
+        cls.push(isToday ? 't' : 'f');
+        out.push('<rect x="' + (cx - r) + '" y="' + (cy - r) + '" width="' + (2 * r) + '" height="' + (2 * r) + '" rx="0.6" class="' + cls.join(' ') + '"/>');
       } else {
         out.push('<rect x="' + (cx - r) + '" y="' + (cy - r) + '" width="' + (2 * r) + '" height="' + (2 * r) + '" rx="0.6" class="e"/>');
       }
     }
     host.innerHTML = '<svg viewBox="0 0 ' + width + ' ' + grid.height.toFixed(2) + '" role="img" aria-label="' + n + ' of ' + goal + ' squares filled, one per decision">' + out.join('') + '</svg>';
-    legend.innerHTML = '<span><i style="background:' + DOT_INK + '"></i>Logged</span><span><i style="background:' + DOT_TODAY + '"></i>Today</span><span>1 square = 1 decision · 100 per block</span>';
+    legend.innerHTML = '<span><i class="f"></i>Logged</span><span><i class="t"></i>Today</span><span>1 square = 1 decision · 100 per block</span>';
   }
 
   function animateNumber(el, to) {
@@ -775,6 +781,30 @@
       if (k < 1) el._raf = requestAnimationFrame(step);
     }
     el._raf = requestAnimationFrame(step);
+  }
+
+  /** Health colors adjusted for the current theme (dark themes get dark bar tracks). */
+  function hc(h) {
+    var c = H.colorsFor(h);
+    var t = state.settings.theme;
+    if (t === 'stone') return c;
+    return { fill: c.fill, onFill: c.onFill, ink: c.ink, track: H.mixHex(c.fill, THEME_BG[t], 0.78) };
+  }
+
+  function applyTheme() {
+    var t = state.settings.theme;
+    if (t === 'stone') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', t);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', THEME_BG[t]);
+    $$('.theme-opt').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.theme === t)); });
+    var btn = $('#theme-btn');
+    if (btn) btn.title = 'Theme: ' + THEME_LABEL[t] + ' (T)';
+  }
+
+  function setTheme(t) {
+    commit(function (s) { s.settings.theme = t; });
+    toast('Theme: ' + THEME_LABEL[t]);
   }
 
   function whyOf(name) {
@@ -894,7 +924,7 @@
     $$('.bar', bars).forEach(function (b) { existing[b.dataset.id] = b; });
     state.categories.forEach(function (c, i) {
       var h = v.health.byName[c.name];
-      var col = H.colorsFor(h);
+      var col = hc(h);
       var d = H.describe(h);
       var el = existing[c.id];
       delete existing[c.id];
@@ -956,7 +986,7 @@
     }
     list.innerHTML = state.categories.map(function (c, i) {
       var h = v.health.byName[c.name];
-      var col = H.colorsFor(h);
+      var col = hc(h);
       var target = (n - i) / sum;
       return '<li class="prio__row" data-id="' + c.id + '">' +
         '<button type="button" class="prio__handle" aria-label="Reorder ' + esc(c.name) + '. Position ' + (i + 1) + ' of ' + n + '. Use arrow keys to move.">' + icon('grip') + '</button>' +
@@ -1373,7 +1403,7 @@
       '<div class="tiles" role="list">' +
       state.categories.map(function (c, i) {
         var h = v.health.byName[c.name];
-        var col = H.colorsFor(h);
+        var col = hc(h);
         var tag = needs && needs.name === c.name ? '<span class="tile__tag">Behind</span>' : '';
         return '<button type="button" role="listitem" class="tile" data-pick="' + esc(c.name) + '" style="--c:' + c.color + ';--h:' + col.fill + ';--i:' + i + '" aria-label="' + esc(c.name + ', priority ' + c.priorityRank + '. ' + H.describe(h).short) + '">' +
           tag +
@@ -1593,7 +1623,7 @@
     var c = v.catByName[name];
     if (!c) return closeSheet();
     var h = v.health.byName[name];
-    var col = H.colorsFor(h);
+    var col = hc(h);
     var d = H.describe(h);
 
     // Per-day counts for the last 7 days (oldest → today).
@@ -2375,7 +2405,7 @@
       m.setMonth(m.getMonth() + step);
     }
     var tx = x(now);
-    out.push('<line x1="' + tx.toFixed(1) + '" x2="' + tx.toFixed(1) + '" y1="' + (top - 4) + '" y2="' + (Hh - bottom) + '" stroke="#B08D3C" stroke-width="2"/><text x="' + (tx - 4).toFixed(1) + '" y="' + (Hh - 9) + '" text-anchor="end" style="fill:#8C6A24;font-weight:700">Today</text>');
+    out.push('<line x1="' + tx.toFixed(1) + '" x2="' + tx.toFixed(1) + '" y1="' + (top - 4) + '" y2="' + (Hh - bottom) + '" style="stroke:var(--gold)" stroke-width="2"/><text x="' + (tx - 4).toFixed(1) + '" y="' + (Hh - 9) + '" text-anchor="end" style="fill:var(--gold-ink);font-weight:700">Today</text>');
     lanes.forEach(function (a, i) {
       var y = top + i * laneH;
       out.push('<text x="0" y="' + (y + laneH / 2 + 4) + '" style="font-weight:700;fill:var(--ink-2)">' + esc(a) + '</text>');
@@ -2385,12 +2415,11 @@
         var e0 = x(b.status === 'active' ? now : Date.parse(b.endedAt) + 86400000);
         var wv = Math.max(6, e0 - s0);
         var alpha = (0.28 + b.weight * 0.14).toFixed(2);
-        out.push('<rect class="tl-bar" data-action="battle-open" data-id="' + b.id + '" x="' + s0.toFixed(1) + '" y="' + (y + 9) + '" width="' + wv.toFixed(1) + '" height="' + (laneH - 18) + '" rx="3" fill="rgba(17,19,21,' + alpha + ')"' +
-          (b.status === 'active' ? ' stroke="#B08D3C" stroke-width="2.5"' : '') + '><title>' + esc(b.title) + ' · ' + BT.days(b, v.now) + ' days' + (b.status === 'active' ? ' so far' : '') + '</title></rect>');
+        out.push('<rect class="tl-bar" data-action="battle-open" data-id="' + b.id + '" x="' + s0.toFixed(1) + '" y="' + (y + 9) + '" width="' + wv.toFixed(1) + '" height="' + (laneH - 18) + '" rx="3" style="fill:var(--ink);fill-opacity:' + alpha + (b.status === 'active' ? ';stroke:var(--gold);stroke-width:2.5' : '') + '"><title>' + esc(b.title) + ' · ' + BT.days(b, v.now) + ' days' + (b.status === 'active' ? ' so far' : '') + '</title></rect>');
       });
     });
     body.innerHTML = '<div class="tl-wrap"><svg class="tl" viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="Timeline of battles by area">' + out.join('') + '</svg></div>' +
-      '<div class="chart__legend"><span><i style="background:rgba(17,19,21,.42)"></i>Lighter</span><span><i style="background:rgba(17,19,21,.98)"></i>Heavier</span><span><i style="background:transparent;border:2px solid #B08D3C"></i>Still in it</span><span>Click a bar for details</span></div>';
+      '<div class="chart__legend"><span><i style="background:var(--ink);opacity:.42"></i>Lighter</span><span><i style="background:var(--ink)"></i>Heavier</span><span><i style="background:transparent;border:2px solid var(--gold)"></i>Still in it</span><span>Click a bar for details</span></div>';
   }
 
   // New battle
@@ -2545,7 +2574,7 @@
       if (points.length > 1) {
         var W = 300, Hh = 60;
         var t0 = Date.parse(points[0].at), t1 = Math.max(t0 + 1, Date.parse(points[points.length - 1].at));
-        spark = '<svg class="wspark" viewBox="0 0 ' + W + ' ' + Hh + '"><polyline fill="none" stroke="#111315" stroke-width="2.5" points="' + points.map(function (p) {
+        spark = '<svg class="wspark" viewBox="0 0 ' + W + ' ' + Hh + '"><polyline fill="none" style="stroke:var(--ink)" stroke-width="2.5" points="' + points.map(function (p) {
           return (8 + (W - 16) * (Date.parse(p.at) - t0) / (t1 - t0)).toFixed(1) + ',' + (8 + (Hh - 16) * (5 - p.weight) / 4).toFixed(1);
         }).join(' ') + '"/></svg>';
       }
@@ -3024,6 +3053,8 @@
       case 'delete-decision': confirmDelete(el.dataset.id); break;
       case 'log-category': openAdd({ categoryName: el.dataset.name }); break;
       case 'battle-new': openBattleEditor(); break;
+      case 'theme': setTheme(el.dataset.theme); break;
+      case 'theme-next': setTheme(THEMES[(THEMES.indexOf(state.settings.theme) + 1) % THEMES.length]); break;
       case 'bet-new': openBetEditor(); break;
       case 'bet-open': openBet(el.dataset.id); break;
       case 'bet-review': openBetReview(el.dataset.id); break;
@@ -3113,6 +3144,11 @@
     if (sheetEl.open || confirmEl.open) return;
     var tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+    if (e.key === 't' || e.key === 'T') {
+      e.preventDefault();
+      setTheme(THEMES[(THEMES.indexOf(state.settings.theme) + 1) % THEMES.length]);
+      return;
+    }
     if ((e.key === 'v' || e.key === 'V') && !state.settings.privateMode) {
       e.preventDefault();
       openRecorder();
