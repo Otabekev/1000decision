@@ -240,8 +240,18 @@
               </div>
             </div>
             <div class="settings__block">
+              <p class="settings__label">Your book</p>
+              <p class="settings__hint">Everything you have logged, as a printable book (Save as PDF in the print window) or a poster with one square per decision.</p>
+              <div class="settings__row">
+                <button class="btn btn--soft" type="button" data-action="book-print">Print the Book</button>
+                <button class="btn btn--soft" type="button" data-action="poster-save">Save the poster</button>
+              </div>
+            </div>
+            <div id="trust-settings"></div>
+            <div class="settings__block">
               <p class="settings__label">Start over</p>
               <div class="settings__row">
+                <button class="btn btn--soft" type="button" data-action="ritual-open">Run the Day 1 setup again</button>
                 <button class="btn btn--danger-soft" type="button" data-action="reset">Erase all data</button>
               </div>
             </div>
@@ -427,5 +437,6 @@
   <script src="js/card.js"></script>
   <script src="js/app.js"></script>
   <script src="js/onboarding.js"></script>
+  <script src="js/finale.js"></script>
 </body>
 </html>

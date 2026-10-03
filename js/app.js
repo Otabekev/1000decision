@@ -127,7 +127,7 @@
       version: 1,
       categories: [],
       decisions: [],
-      settings: { goal: 1000, startDate: ymd(new Date()), signature: '', lastBackupAt: null, showWhyOnCard: false, privateMode: false, checkinDays: 14, theme: 'stone' },
+      settings: { goal: 1000, startDate: ymd(new Date()), signature: '', lastBackupAt: null, showWhyOnCard: false, privateMode: false, checkinDays: 14, theme: 'stone', finaleShownFor: 0 },
       // One-tap answers to "What pulled you away?" and when the question was last shown.
       reasons: [],
       prompt: { lastAsked: null, ignored: 0, pausedUntil: null },
@@ -172,6 +172,7 @@
     out.settings.showWhyOnCard = s.showWhyOnCard === true;
     out.settings.privateMode = s.privateMode === true;
     out.settings.theme = THEMES.indexOf(s.theme) !== -1 ? s.theme : 'stone';
+    out.settings.finaleShownFor = Math.max(0, parseInt(s.finaleShownFor, 10) || 0);
     out.settings.checkinDays = [14, 30].indexOf(+s.checkinDays) !== -1 ? +s.checkinDays : 14;
 
     if (Array.isArray(src.battles)) {

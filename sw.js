@@ -17,6 +17,7 @@ var ASSETS = [
   './js/card.js',
   './js/app.js',
   './js/onboarding.js',
+  './js/finale.js',
   './css/fonts.css',
   './manifest.webmanifest',
   './icons/favicon.svg',

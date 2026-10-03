@@ -504,3 +504,62 @@ test('letter can be written later from the Record tab', async () => {
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('finale at the goal: letter opens, poster saves, season 2 starts', async () => {
+  const data = sample();
+  data.settings.goal = 17;
+  data.letter = { text: 'You made it. Keep going.', sealedAt: new Date(Date.now() - 40 * 86400000).toISOString(), openedAt: null, season: 1 };
+  data.lessons = [{ id: 'l1', text: 'Small beats heroic', area: 'Mind', pinned: true, at: new Date().toISOString(), source: { type: 'manual' } }];
+  const { ctx, page, errors } = await open(data, { width: 1280, height: 900 });
+  assert.equal(await page.$('.finale'), null);
+  await page.click('.fab, [data-action="add"]');
+  await page.click('.tile[data-pick="Gym"]');
+  await page.fill('input[name="text"]', 'Number seventeen');
+  await page.click('.add-form button[type="submit"]');
+  await page.waitForSelector('.finale');
+  assert.match(await page.textContent('.finale'), /Season 1 · chapter complete/);
+  assert.equal((await stored(page)).settings.finaleShownFor, 17);
+  await page.click('.finale [data-f="letter"]');
+  assert.doesNotMatch(await page.textContent('.finale'), /Keep going/);
+  await page.click('.finale [data-f="break"]');
+  await page.waitForSelector('.envelope.is-open');
+  assert.match(await page.textContent('.envelope__text'), /You made it. Keep going./);
+  assert.ok((await stored(page)).letter.openedAt);
+  await page.click('.finale [data-f="built"]');
+  assert.match(await page.textContent('.finale'), /Small beats heroic/);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('.finale [data-action="poster-save"]')]);
+  assert.equal(download.suggestedFilename(), '1000-decisions-season-1.png');
+  await page.click('.finale [data-f="season"]');
+  await page.click('#confirm [data-confirm="ok"]');
+  await page.waitForSelector('.finale', { state: 'detached' });
+  const s = await stored(page);
+  assert.equal(s.settings.goal, 34);
+  assert.equal(s.seasons.length, 1);
+  assert.equal(s.seasons[0].letter, 'You made it. Keep going.');
+  assert.equal(s.letter, null);
+  await page.waitForSelector('#letter-card [data-action="letter-write"]');
+  // Reload must not re-open the finale.
+  await page.reload();
+  await page.waitForSelector('#letter-card');
+  await page.waitForTimeout(800);
+  assert.equal(await page.$('.finale'), null);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('the Book contains every chapter and every decision', async () => {
+  const data = sample();
+  data.battles = [{ id: 'b1', title: 'Back pain', area: 'Health', weight: 3, step: '', startedAt: new Date(Date.now() - 9 * 86400000).toISOString(), status: 'won', endedAt: new Date(Date.now() - 2 * 86400000).toISOString(), helped: [], note: 'Stretching', updates: [] }];
+  data.firsts = [{ id: 'f1', title: 'First marathon', area: 'Gym', date: '2026-05-01', note: '' }];
+  data.categories[0].why = 'strong at 60';
+  const { ctx, page, errors } = await open(data);
+  await page.evaluate(() => { window.print = () => { window.__printed = document.documentElement.classList.contains('is-printing-book'); }; });
+  await page.click('#settings summary');
+  await page.click('[data-action="book-print"]');
+  await page.waitForFunction(() => window.__printed !== undefined);
+  assert.equal(await page.evaluate(() => window.__printed), true);
+  const text = await page.textContent('#book');
+  for (const s of ['The Book', 'What mattered, and why', 'strong at 60', 'The numbers', 'Proof', 'Battles', 'Back pain', 'Firsts', 'First marathon', 'Every decision', '#16']) assert.ok(text.includes(s), 'missing ' + s);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

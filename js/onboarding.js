@@ -116,11 +116,12 @@
           '<input class="input" data-first maxlength="140" placeholder="What did you do?" value="' + esc(draft.first.text) + '" autocomplete="off">' +
           '<div class="ritual__actions"><button type="button" class="btn btn--brass btn--lg" data-r="finish">Log it and start</button><button type="button" class="btn btn--ghost-light" data-r="finish-skip">Not yet</button></div>';
       } else {
-        var n = draft.first.text.trim() ? 1 : 0;
-        html = '<div class="ritual__grid" aria-hidden="true">' + Array.from({ length: 100 }, function (_, i) { return '<i class="' + (i < n ? 'on' : '') + '"></i>'; }).join('') + '</div>' +
+        var n = TD.state.decisions.length;
+        var left = Math.max(0, TD.state.settings.goal - n);
+        html = '<div class="ritual__grid" aria-hidden="true">' + Array.from({ length: 100 }, function (_, i) { return '<i class="' + (i < Math.min(n, 100) ? 'on' : '') + '"></i>'; }).join('') + '</div>' +
           '<p class="ritual__eyebrow">' + new Date().toLocaleDateString(TD.LOCALE, { weekday: 'long', month: 'long', day: 'numeric' }) + '</p>' +
-          '<h1 class="ritual__title ritual__title--xl">Day 1.</h1>' +
-          '<p class="ritual__lede">' + (n ? 'Decision #1 is logged. ' : '') + draft.priorities.length + ' ' + U.plural(draft.priorities.length, 'priority', 'priorities') + ' ranked' + (draft.letter.trim() ? ', a letter sealed' : '') + '. 999 to go. You don’t need a perfect day, just the next decision.</p>' +
+          '<h1 class="ritual__title ritual__title--xl">Day ' + U.fmtNum(TD.derive().day) + '.</h1>' +
+          '<p class="ritual__lede">' + (n === 1 ? 'Decision #1 is logged. ' : '') + draft.priorities.length + ' ' + U.plural(draft.priorities.length, 'priority', 'priorities') + ' ranked' + (draft.letter.trim() ? ', a letter sealed' : '') + '. ' + U.fmtNum(left) + ' to go. You don’t need a perfect day, just the next decision.</p>' +
           '<div class="ritual__actions"><button type="button" class="btn btn--brass btn--lg" data-r="enter">Enter</button></div>';
       }
       root.innerHTML = '<div class="ritual__inner ritual__inner--' + step + '">' + html + '</div>';
@@ -140,6 +141,8 @@
     function go(delta) {
       collect();
       draft.step = Math.max(0, Math.min(STEPS.length - 1, draft.step + delta));
+      // A letter already sealed stays sealed; re-running setup doesn't replace it.
+      if (STEPS[draft.step] === 'letter' && TD.state.letter && !TD.state.letter.openedAt) draft.step += delta > 0 ? 1 : -1;
       paint();
     }
 
@@ -242,19 +245,19 @@
       var goal = s.settings.goal;
       var L = s.letter;
       if (!L) {
-        card.innerHTML = '<div class="letter__seal letter__seal--open" aria-hidden="true">1000</div><div class="letter__body"><p class="eyebrow">Sealed letter</p>' +
+        card.innerHTML = '<div class="letter__seal letter__seal--open" aria-hidden="true">' + U.fmtNum(goal) + '</div><div class="letter__body"><p class="eyebrow">Sealed letter</p>' +
           '<h2 class="panel__title">Write to the man who reaches ' + U.fmtNum(goal) + '</h2>' +
           '<p class="panel__lede">It stays sealed until you log decision ' + U.fmtNum(goal) + '. Then it opens, and you get to meet who you were today.</p>' +
           '<button type="button" class="btn btn--primary" data-action="letter-write">Write the letter</button></div>';
       } else if (!L.openedAt) {
         var left = Math.max(0, goal - v.total);
-        card.innerHTML = '<div class="letter__seal" aria-hidden="true">1000</div><div class="letter__body"><p class="eyebrow">Sealed letter</p>' +
+        card.innerHTML = '<div class="letter__seal" aria-hidden="true">' + U.fmtNum(goal) + '</div><div class="letter__body"><p class="eyebrow">Sealed letter</p>' +
           '<h2 class="panel__title">Sealed on ' + esc(U.fmtDate(L.sealedAt)) + '</h2>' +
           '<p class="panel__lede">' + (left ? 'Opens at decision ' + U.fmtNum(goal) + '. <b>' + U.fmtNum(left) + ' to go.</b>' : 'Ready to open.') + '</p>' +
           (left ? '<div class="letter__bar"><i style="width:' + Math.min(100, (v.total / goal) * 100).toFixed(1) + '%"></i></div>' : '<button type="button" class="btn btn--brass" data-action="finale-open">Open it</button>') +
           '</div>';
       } else {
-        card.innerHTML = '<div class="letter__seal letter__seal--broken" aria-hidden="true">1000</div><div class="letter__body"><p class="eyebrow">Letter · opened ' + esc(U.fmtDate(L.openedAt)) + '</p>' +
+        card.innerHTML = '<div class="letter__seal letter__seal--broken" aria-hidden="true">' + U.fmtNum(goal) + '</div><div class="letter__body"><p class="eyebrow">Letter · opened ' + esc(U.fmtDate(L.openedAt)) + '</p>' +
           '<div class="letter__text">' + esc(L.text).replace(/\n/g, '<br>') + '</div>' +
           '<p class="letter__sign">Written ' + esc(U.fmtDate(L.sealedAt)) + '</p></div>';
       }
