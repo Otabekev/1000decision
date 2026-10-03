@@ -95,10 +95,11 @@
     function dailySnapshot() {
       var key = 'day:' + U.ymd(new Date());
       if (dailyKey === key) return;
+      if (isEmpty(TD.state)) return; // nothing to keep yet; try again on the next render
       dailyKey = key;
       tx('snapshots', 'readonly', function (st) { return st.get(key); }).then(function (have) {
         if (!have) snapshot('Start of day', 'daily');
-      }).catch(function () {});
+      }).catch(function () { dailyKey = null; });
     }
 
     function restore(id) {
@@ -181,7 +182,7 @@
       return permission(h, false).then(function (ok) {
         if (!ok) { setStatus('paused'); return false; }
         var data = payload();
-        var sig = JSON.stringify(TD.state);
+        var sig = JSON.stringify(Object.assign({}, TD.state, { settings: Object.assign({}, TD.state.settings, { lastBackupAt: null }) }));
         if (!force && sig === lastWritten) return true;
         var now = new Date();
         return writeFile(h, '1000-decisions-latest.json', data)
@@ -305,8 +306,8 @@
           if (a.value !== b.value) { b.classList.add('is-invalid'); b.focus(); return; }
           var salt = newSalt();
           hashPin(a.value, salt).then(function (hash) {
-            TD.commit(function (s) { s.lock = { hash: hash, salt: salt }; });
             setUnlocked(true);
+            TD.commit(function (s) { s.lock = { hash: hash, salt: salt }; });
             TD.closeSheet();
             TD.toast('Lock is on', { sub: 'Battles and Record need the PIN in a new session.' });
           }).catch(function () { TD.toast('This browser can’t create a PIN here.', { tone: 'error' }); });

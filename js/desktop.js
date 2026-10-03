@@ -46,6 +46,7 @@
       paint();
       if (u.state === 'ready') TD.toast('Update ready: version ' + u.version, { sub: 'It installs next time you open the app.', actions: [{ label: 'Restart now', run: function () { D.installUpdate(); } }] });
       else if (u.state === 'latest') TD.toast('You have the latest version (' + u.version + ')');
+      else if (u.state === 'downloading') TD.toast('Downloading version ' + u.version + '…', { sub: 'It installs when you restart the app.' });
       else if (u.state === 'error') TD.toast('Couldn’t check for updates. Are you online?', { tone: 'error' });
     });
 

@@ -99,7 +99,12 @@
     function deactivate() {
       var done = function () { lic = { trialStartedAt: lic.trialStartedAt }; write(lic); paintSettings(); gate(); };
       if (!lic.key || !lic.instanceId) return Promise.resolve(done());
-      return call('deactivate', { license_key: lic.key, instance_id: lic.instanceId }).then(done, done);
+      return call('deactivate', { license_key: lic.key, instance_id: lic.instanceId }).then(function (r) {
+        if (r && r.deactivated) return done();
+        TD.toast('Couldn’t release the license right now. Check your connection and try again.', { tone: 'error' });
+      }, function () {
+        TD.toast('Couldn’t reach the license server. Your license stays on this computer for now.', { tone: 'error' });
+      });
     }
 
     // ── Paywall: shown when the trial is over and there's no key ───────

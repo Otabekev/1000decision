@@ -14,6 +14,7 @@
 
 const { app, BrowserWindow, Menu, shell, session, ipcMain, net } = require('electron');
 const path = require('path');
+const url = require('url');
 
 const APP_DIR = path.join(__dirname, 'app');
 let win = null;
@@ -74,8 +75,12 @@ function createWindow() {
     if (/^https?:/.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
-  win.webContents.on('will-navigate', (e, url) => {
-    if (!url.startsWith('file://')) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); }
+  // The window only ever shows the app itself (hash changes are fine).
+  const home = url.pathToFileURL(path.join(APP_DIR, 'index.html')).href;
+  win.webContents.on('will-navigate', (e, target) => {
+    if (target.split('#')[0] === home) return;
+    e.preventDefault();
+    if (/^https?:/.test(target)) shell.openExternal(target);
   });
   win.on('closed', () => { win = null; });
 }
@@ -118,12 +123,15 @@ function setupUpdates() {
   }
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-available', (info) => send('update', { state: 'downloading', version: info.version }));
   autoUpdater.on('update-downloaded', (info) => send('update', { state: 'ready', version: info.version }));
-  autoUpdater.on('error', () => {});
+  autoUpdater.on('error', (err) => { if (manualCheck) send('update', { state: 'error', message: String(err && err.message || err) }); manualCheck = false; });
   checkForUpdates(false);
   setInterval(() => checkForUpdates(false), 6 * 60 * 60 * 1000);
 }
+let manualCheck = false;
 function checkForUpdates(manual) {
+  manualCheck = !!manual;
   if (!autoUpdater) {
     if (manual) send('update', { state: 'dev' });
     return;

@@ -93,7 +93,10 @@
       "artifactName": "1000-Decisions-${version}-mac.${ext}",
       "extendInfo": {
         "NSMicrophoneUsageDescription": "1000 Decisions records voice notes only when you press record."
-      }
+      },
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "linux": {
       "target": [

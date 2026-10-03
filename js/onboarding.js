@@ -140,6 +140,7 @@
     }
 
     function go(delta) {
+      importing = false;
       collect();
       draft.step = Math.max(0, Math.min(STEPS.length - 1, draft.step + delta));
       // A letter already sealed stays sealed; re-running setup doesn't replace it.
@@ -157,6 +158,7 @@
     }
 
     function finish(withDecision) {
+      importing = false;
       collect();
       TD.commit(function (s) {
         var hadData = s.decisions.length > 0;

@@ -215,7 +215,8 @@
     // Auto-open once when the goal is reached.
     function check(v) {
       var s = TD.state;
-      if (v.total >= s.settings.goal && s.settings.finaleShownFor < s.settings.goal && s.onboarded && !root) setTimeout(open, 600);
+      // Behind a PIN, the finale (letter, battles) waits until it's unlocked.
+      if (v.total >= s.settings.goal && s.settings.finaleShownFor < s.settings.goal && s.onboarded && !root && !TD.isLocked()) setTimeout(open, 600);
     }
     TD.onRender(check);
     check(TD.derive());
@@ -475,6 +476,7 @@
       var b = e.target.closest('[data-action]');
       if (!b) return;
       var a = b.dataset.action;
+      if ((a === 'finale-open' || a === 'book-print') && TD.isLocked()) { TD.toast('Unlock Battles and Record with your PIN first.'); return; }
       if (a === 'finale-open') open();
       else if (a === 'book-print') printBook();
       else if (a === 'poster-save') savePoster();
