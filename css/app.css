@@ -1640,3 +1640,232 @@ textarea.ritual__letter, .ritual__letter {
   .tab { padding: 6px 8px; font-size: 12px; letter-spacing: 0.04em; }
 }
 @media (max-width: 360px) { .tab { padding: 6px 6px; font-size: 11px; letter-spacing: 0.02em; } }
+
+/* ==========================================================================
+   Design pass: editorial, not template.
+   Serif headings in sentence case, the condensed face only for numbers,
+   open sections divided by hairlines instead of stacked cards, one quiet
+   accent. Placed last so it settles every earlier rule.
+   ========================================================================== */
+
+:root {
+  --font-serif: 'Newsreader', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+  --bg: #FAF9F6;
+  --surface: #FFFFFF;
+  --line: #E7E4DE;
+  --line-2: #D6D2CA;
+  --rule: #E7E4DE;
+}
+:root[data-theme="carbon"] { --rule: #252A30; }
+:root[data-theme="terminal"] { --rule: #262A18; --font-serif: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, Menlo, monospace; }
+
+body { font-size: 15px; letter-spacing: -0.003em; }
+
+/* Headings: serif, sentence case */
+.panel__title, .sheet__title, .confirm__title, .war__title, .fight__title, .bet__title, .been__title,
+.detail__label, .onboard__title, .learning__title, .ritual__title, .finale__next b, .playbook__title,
+.cal-nav__label, .cal-day h3 span, .lessons--pinned .lesson__text, .book h1, .book h2, .book h3 {
+  font-family: var(--font-serif); text-transform: none; letter-spacing: -0.012em; font-weight: 500;
+}
+.panel__title { font-size: 24px; line-height: 1.15; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.panel__meta { font-family: var(--font); font-size: 13.5px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+.panel__lede { color: var(--ink-3); font-size: 14px; margin: 4px 0 18px; }
+.panel__head { margin-bottom: 14px; }
+.sheet__title { font-size: 26px; line-height: 1.15; }
+.confirm__title { font-size: 24px; }
+.fight__title, .bet__title { font-size: 21px; line-height: 1.2; }
+.been__title { font-size: 19px; }
+.detail__label { font-size: 22px; }
+.onboard__title, .learning__title { font-size: 20px; }
+.lessons--pinned .lesson__text { font-size: 19px; font-weight: 500; }
+
+/* Small labels: sentence case, no tracking */
+.eyebrow, .kpi dt, .chart__title, .entry__cat, .sheet__section-title, .proof__cat, .proof__label, .facts dt,
+.war__stats dt, .fight__area, .judge__big span, .bet-facts dt, .ritual__eyebrow, .ritual__progress span,
+.ritual__why span, .finale__stats dt, .hard__label, .cal-dh span, .cal-mh, .suggest-more__label, .day-head {
+  text-transform: none; letter-spacing: 0; font-size: 12.5px; font-weight: 600;
+}
+.eyebrow { color: var(--ink-3); margin-bottom: 4px; }
+:root[data-theme="terminal"] .eyebrow::before { content: ''; }
+
+/* Top bar */
+.topbar { background: var(--topbar-bg); }
+.brand__name { font-family: var(--font-serif); font-weight: 500; font-size: 19px; letter-spacing: -0.01em; text-transform: none; }
+.brand__mark { width: 26px; height: 26px; padding: 6px; gap: 2.5px; border-radius: 4px; }
+.tabs { background: transparent; padding: 0; gap: 2px; }
+.tab {
+  font-family: var(--font); text-transform: none; letter-spacing: 0; font-size: 14.5px; font-weight: 550;
+  color: var(--ink-3); background: transparent; border-radius: 0; padding: 20px 10px 18px; margin: -10px 0;
+  box-shadow: inset 0 -2px 0 transparent;
+}
+.tab:hover { color: var(--ink); }
+.tab[aria-current="page"], :root[data-theme="terminal"] .tab[aria-current="page"] { background: transparent; color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); }
+.tab__count { background: var(--surface-3); color: var(--ink-2); font-weight: 700; border-radius: 9px; padding: 0 6px; margin-left: 6px; font-size: 11px; }
+.topbar__stats { font-family: var(--font); font-weight: 600; font-size: 13.5px; letter-spacing: 0; gap: 8px; }
+.topbar__day { text-transform: none; letter-spacing: 0; color: var(--ink-3); }
+.topbar__hard { font-weight: 600; }
+@media (max-width: 560px) { .tab { font-size: 13px; padding: 20px 7px 18px; } }
+@media (max-width: 360px) { .tab { font-size: 12.5px; padding: 20px 5px 18px; } }
+
+/* Sections: open, divided by hairlines */
+.panel {
+  background: transparent; border: 0; border-top: 1px solid var(--rule); border-radius: 0; box-shadow: none;
+  padding: 26px 0 8px;
+}
+:root[data-theme="terminal"] .panel { border-color: var(--rule); }
+@media (min-width: 560px) { .panel { padding: 30px 0 10px; } }
+.page, #view-battles, #battles-body, #view-record, #record-body, #view-calendar, #calendar-root { gap: 22px; }
+.grid-2 { column-gap: 48px; }
+
+/* Summary keeps a quiet frame: it's the instrument panel */
+.summary { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 26px 24px; }
+@media (min-width: 980px) { .summary { padding: 32px 36px; } }
+.kpi dt { color: var(--ink-3); }
+.kpi dd { font-weight: 700; }
+.day-pill { border-radius: 3px; letter-spacing: 0.02em; }
+
+/* Page headers on Battles, Record, Calendar (replace the black banners) */
+.war, :root[data-theme="terminal"] .war {
+  background: transparent; background-image: none; color: var(--ink); border: 0; border-radius: 0; padding: 8px 0 4px;
+}
+.war .eyebrow { color: var(--ink-3); }
+.war__title { font-size: clamp(34px, 4.6vw, 46px); line-height: 1.05; font-weight: 500; }
+.war__line { color: var(--ink-2); font-size: 15px; font-weight: 500; margin-top: 10px; }
+.war__stats {
+  background: transparent; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+  border-radius: 0; margin-top: 22px; gap: 0;
+}
+.war__stats div { background: transparent; padding: 14px 18px 14px 0; }
+.war__stats div + div { padding-left: 18px; border-left: 1px solid var(--rule); }
+.war__stats dt { color: var(--ink-3); }
+.war__stats dd { font-size: clamp(28px, 3.6vw, 38px); font-weight: 700; color: var(--ink); text-shadow: none !important; }
+.war__stats dd small { color: var(--ink-3); }
+:root[data-theme="terminal"] .war__stats dd { color: var(--accent); }
+.war .btn--ghost-light { color: var(--ink); border-color: var(--line-2); background: var(--surface); }
+.war .btn--ghost-light:hover { border-color: var(--ink); color: var(--ink); }
+.war .btn--ghost-light[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.war .btn--brass { background: var(--ink); color: var(--on-ink); }
+.war .btn--brass:hover { background: var(--ink-hover); }
+.war .btn--brass kbd { background: rgba(128, 128, 128, 0.25); color: inherit; }
+@media (max-width: 640px) { .war__stats div:nth-child(3) { padding-left: 0; border-left: 0; } .war__stats div:nth-child(n+3) { border-top: 1px solid var(--rule); } }
+
+/* Notices: one quiet list instead of stacked boxes */
+.pulse { gap: 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.pulse:empty { display: none; }
+.pulse__line, .pulse__ask {
+  background: transparent; border: 0; border-radius: 0; padding: 12px 0 12px 20px; position: relative;
+}
+.pulse > * + * { border-top: 1px solid var(--rule) !important; }
+.pulse__line::before, .pulse__ask::before {
+  content: ''; position: absolute; left: 4px; top: 21px; width: 7px; height: 7px; border-radius: 50%; background: var(--ink-4);
+}
+.pulse__line--heads-up::before { background: var(--red); }
+.pulse__line--good::before { background: var(--green); }
+.review-row { background: transparent; }
+.review-row::before { background: var(--gold) !important; }
+.pulse__line p, .pulse__ask p { font-size: 14.5px; }
+
+/* Balance: label row with a thin bar underneath */
+.bars { gap: 14px; }
+.bar { height: 38px; background: transparent; border-radius: 0; }
+.bar:hover, .bar.is-urgent { box-shadow: none; }
+.bar:hover .bar__name { text-decoration: underline; text-underline-offset: 3px; }
+.bar::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; border-radius: 3px; background: var(--track); }
+.bar__row { padding: 0; align-items: flex-start; color: var(--ink); }
+.bar__row--fill {
+  top: auto; bottom: 0; height: 6px; padding: 0; border-radius: 3px; z-index: 1;
+  clip-path: inset(0 calc(100% - max(var(--w), var(--minw))) 0 0 round 3px);
+}
+.bar__row--fill > * { visibility: hidden; }
+@keyframes bar-grow { from { clip-path: inset(0 100% 0 0 round 3px); } }
+.bar__dot { box-shadow: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; }
+.bar__name { font-size: 15px; font-weight: 600; }
+.bar__rank { color: var(--ink-3); opacity: 1; font-weight: 500; margin-top: 2px; }
+.bar__count { font-size: 19px; font-weight: 700; margin-top: -2px; }
+.bar__icon { margin-top: 2px; color: var(--ink-3); }
+.bar.is-urgent .bar__name, .bar.is-urgent .bar__icon { color: var(--red-ink); }
+
+/* Insight, proof, cards: no colored edge stripes */
+.insight { border-left: 0; border-radius: 6px; }
+.proof__rows { background: transparent; border: 0; border-top: 1px solid var(--rule); border-radius: 0; gap: 0; }
+.proof__row { border-left: 0; border-bottom: 1px solid var(--rule); padding: 12px 0; background: transparent; }
+.proof__cat { font-weight: 600; color: var(--ink-2); gap: 8px; }
+.proof__cat i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.repeat { border-left: 0; border-radius: 6px; }
+.bet { border-left: 1px solid var(--line-2); border-radius: 8px; }
+.tile, .tile--new { border-left-width: 1px; }
+.detail__hero { border-left: 0; border-radius: 8px; }
+.playbook__tip, .finale__lessons blockquote { border-left-width: 2px; }
+.lessons--pinned, .been { border-radius: 8px; }
+.verdict, .won__status { letter-spacing: 0.04em; }
+
+/* Buttons: a touch softer */
+.btn { font-weight: 600; letter-spacing: 0; border-radius: 7px; }
+.btn--soft { background: var(--surface); }
+
+/* Calendar header + blocks */
+.cal-hero .war__title { font-size: clamp(34px, 4.6vw, 46px); }
+.cal-nav__label { font-size: 19px; }
+.cal-week, .cal-month { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 0; }
+.cal-month { padding: 12px; }
+.cal-ev { border-left: 0; border-radius: 4px; box-shadow: inset 2px 0 0 var(--c); }
+.cal-day li button { border-left: 0; box-shadow: inset 2px 0 0 var(--c); border-radius: 4px; }
+.cal-dh b { font-family: var(--font); font-weight: 600; font-size: 22px; }
+.cal-day h3 span { font-size: 19px; }
+
+/* Overlays: serif, sentence case, calmer */
+.ritual__title { font-size: clamp(38px, 6vw, 64px); line-height: 1.04; font-weight: 400; }
+.ritual__title--sm { font-size: clamp(30px, 4.4vw, 44px); }
+.ritual__title--xl { font-family: var(--font-serif); font-weight: 400; font-size: clamp(80px, 14vw, 140px); }
+.ritual__eyebrow, .hard__label { color: var(--gold-2); }
+.ritual__lede { font-size: 17px; }
+.finale__num { font-family: var(--font-serif); font-weight: 400; }
+.finale__next b { font-size: 24px; }
+.playbook__title { font-size: clamp(34px, 4vw, 48px); font-weight: 500; line-height: 1.05; }
+:root[data-theme="terminal"] .playbook__title, :root[data-theme="terminal"] .ritual__title--xl { font-family: var(--font-num); }
+
+/* Book: same voice in print */
+.book h1, .book h2 { font-weight: 500; line-height: 1.05; }
+.book__chapter h2 { font-size: 30pt; }
+.book__cover h1 { font-size: 54pt; }
+
+/* Numbers: serif for the hero figure, plain sans for the rest */
+.hero__count { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.035em; line-height: 0.9; margin: 2px 0 12px -4px; }
+.hero__total { font-family: var(--font-serif); font-weight: 400; font-size: clamp(104px, 30vw, 196px); font-feature-settings: 'lnum' 1, 'tnum' 1; }
+.hero__goal { font-family: var(--font-serif); font-weight: 400; font-size: clamp(32px, 9vw, 56px); letter-spacing: -0.02em; color: var(--ink-4); }
+:root[data-theme="terminal"] .hero__count, :root[data-theme="terminal"] .hero__total, :root[data-theme="terminal"] .hero__goal { font-family: var(--font-num); }
+.day-pill { background: transparent; color: var(--ink); font-family: var(--font); font-weight: 650; font-size: 14.5px; letter-spacing: 0; text-transform: none; padding: 0; }
+:root[data-theme="terminal"] .day-pill { background: transparent; color: var(--accent); }
+.hero__date { color: var(--ink-3); font-weight: 500; }
+.hero__meta { gap: 8px; }
+.hero__meta .day-pill::after { content: '·'; margin-left: 8px; color: var(--ink-4); }
+.kpi dd, .war__stats dd, .finale__stats dd, .proof__big, .judge__big b, .cal-cell__n {
+  font-family: var(--font); font-weight: 650; letter-spacing: -0.02em; font-feature-settings: 'tnum' 1;
+}
+.kpi dd { font-size: 30px; }
+.bar__count { font-family: var(--font); font-weight: 650; font-size: 17px; }
+:root[data-theme="terminal"] .kpi dd, :root[data-theme="terminal"] .war__stats dd, :root[data-theme="terminal"] .bar__count { font-family: var(--font-num); }
+
+/* Leftover edge stripes */
+.fight { border-top-width: 1px; border-color: var(--line-2); border-radius: 8px; }
+.tile { border-left: 1px solid var(--line-2); border-radius: 8px; }
+.tile::before { content: none; }
+
+/* Notice dots sit on the first line */
+.pulse__line, .pulse__ask { align-items: center; }
+.pulse__line::before, .pulse__ask::before { top: 50%; margin-top: -3.5px; }
+
+/* History: a dot for the category, not a stripe */
+.entry__bar { width: 7px; height: 7px; border-radius: 50%; align-self: start; margin-top: 6px; grid-row: 1; }
+.entry__result::before { color: var(--ink-4); font-weight: 500; margin-right: 2px; }
+.count-badge { font-family: var(--font); font-weight: 600; font-size: 14px; border: 0; color: var(--ink-3); padding: 0; }
+/* KPIs: hairlines, no box-in-a-box */
+.kpis { background: transparent; border: 0; border-radius: 0; gap: 0; }
+.kpis > * { background: transparent !important; border-top: 1px solid var(--rule); }
+.kpis > :nth-child(odd):not(.kpi--wide) { border-right: 1px solid var(--rule); }
+.kpi { padding: 14px 16px 14px 0; }
+.kpis > :nth-child(even) { padding-left: 18px; }
+/* Sections no longer have side padding, so nothing may bleed past the page edge. */
+.chart__body { padding-right: 8px; }
+.chips { margin: 0 0 12px; padding: 2px 0 6px; }
+@media (min-width: 560px) { .chips { margin: 0 0 12px; padding: 2px 0 6px; } }

@@ -4,7 +4,7 @@
  * Strategy: serve from cache, refresh the cache in the background.
  * Bump VERSION when shipping changes that must replace old caches.
  */
-var VERSION = 'td-v7';
+var VERSION = 'td-v8';
 var ASSETS = [
   './',
   './index.html',

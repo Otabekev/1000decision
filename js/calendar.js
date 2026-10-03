@@ -84,7 +84,7 @@
 
     function head(title, sub, rangeLabel) {
       return '<section class="war cal-hero">' +
-        '<div class="war__top"><div><p class="eyebrow">Calendar</p><h1 class="war__title">' + title + '</h1></div>' +
+        '<div class="war__top"><div><h1 class="war__title">' + title + '</h1></div>' +
         '<div class="cal-switch" role="group" aria-label="Calendar view">' +
         '<button type="button" class="btn btn--ghost-light" data-cal-mode="week" aria-pressed="' + (mode === 'week') + '">Week</button>' +
         '<button type="button" class="btn btn--ghost-light" data-cal-mode="month" aria-pressed="' + (mode === 'month') + '">Month</button></div></div>' +
@@ -108,7 +108,7 @@
       var isThis = sameDay(from, weekStart(new Date()));
       var label = from.toLocaleDateString(TD.LOCALE, { month: 'short', day: 'numeric' }) + ' – ' + addDays(to, -1).toLocaleDateString(TD.LOCALE, { month: 'short', day: 'numeric', year: 'numeric' });
 
-      var html = head(isThis ? 'This week, so far.' : 'The week you had.', 'Nothing to plan, nothing to fall behind on. Every block here is a decision you already made.', label);
+      var html = head(isThis ? 'This week' : 'Week of ' + from.toLocaleDateString(TD.LOCALE, { month: 'long', day: 'numeric' }), 'Filled in by the decisions you make. Nothing to plan here.', label);
       html += review(from, to, list, days);
 
       // Moments strip
@@ -214,7 +214,7 @@
       var max = 1;
       Object.keys(days).forEach(function (k) { max = Math.max(max, days[k].length); });
       var label = first.toLocaleDateString(TD.LOCALE, { month: 'long', year: 'numeric' });
-      var html = head(label.split(' ')[0] + '.', monthCount ? fmtNum(monthCount) + ' ' + U.plural(monthCount, 'decision') + ' on ' + activeDays + ' ' + U.plural(activeDays, 'day') + '. Click a day to see that week.' : 'Nothing logged this month yet. It fills itself in as you go.', label);
+      var html = head(label, monthCount ? fmtNum(monthCount) + ' ' + U.plural(monthCount, 'decision') + ' on ' + activeDays + ' ' + U.plural(activeDays, 'day') + '. Click a day to see that week.' : 'Nothing logged this month yet. It fills itself in as you go.', label);
       var wd = [];
       for (var i = 0; i < 7; i++) wd.push('<div class="cal-mh">' + addDays(gridStart, i).toLocaleDateString(TD.LOCALE, { weekday: 'short' }) + '</div>');
       var cells = [];

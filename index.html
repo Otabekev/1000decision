@@ -93,8 +93,7 @@
       <section class="panel" id="balance" aria-labelledby="balance-title">
         <div class="panel__head">
           <div>
-            <p class="eyebrow">Balance · last 7 days</p>
-            <h2 class="panel__title" id="balance-title">Where your discipline goes</h2>
+            <h2 class="panel__title" id="balance-title">Balance <span class="panel__meta">last 7 days</span></h2>
           </div>
         </div>
         <div class="insight" id="insight" hidden></div>
@@ -113,11 +112,10 @@
       <section class="panel" id="priorities" aria-labelledby="prio-title">
         <div class="panel__head">
           <div>
-            <p class="eyebrow">Priorities</p>
-            <h2 class="panel__title" id="prio-title">Rank what matters</h2>
+            <h2 class="panel__title" id="prio-title">Priorities</h2>
           </div>
         </div>
-        <p class="panel__lede">Drag to reorder. The higher a priority sits, the larger share of your decisions it demands.</p>
+        <p class="panel__lede">Drag to reorder. Higher up means a larger share of your decisions.</p>
         <ol class="prio" id="prio-list"></ol>
         <button class="btn btn--soft btn--block" type="button" data-action="new-category">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
@@ -130,8 +128,7 @@
     <section class="panel stats" id="stats" aria-labelledby="stats-title">
       <div class="panel__head">
         <div>
-          <p class="eyebrow">Statistics</p>
-          <h2 class="panel__title" id="stats-title">The record</h2>
+          <h2 class="panel__title" id="stats-title">Last 30 days</h2>
         </div>
       </div>
       <div class="stats__grid">
@@ -151,8 +148,7 @@
       <section class="panel" id="proof" aria-labelledby="proof-title">
         <div class="panel__head">
           <div>
-            <p class="eyebrow">Proof</p>
-            <h2 class="panel__title" id="proof-title">What your decisions got you</h2>
+            <h2 class="panel__title" id="proof-title">Proof <span class="panel__meta">what the decisions got you</span></h2>
           </div>
           <span class="count-badge" id="proof-count" title="Results logged">0</span>
         </div>
@@ -163,8 +159,7 @@
       <section class="panel" id="patterns" aria-labelledby="patterns-title">
         <div class="panel__head">
           <div>
-            <p class="eyebrow">Your patterns</p>
-            <h2 class="panel__title" id="patterns-title">When you decide</h2>
+            <h2 class="panel__title" id="patterns-title">Patterns</h2>
           </div>
         </div>
         <div id="patterns-body"></div>
@@ -176,8 +171,7 @@
       <section class="panel" id="history" aria-labelledby="history-title">
         <div class="panel__head">
           <div>
-            <p class="eyebrow">History</p>
-            <h2 class="panel__title" id="history-title">Every decision</h2>
+            <h2 class="panel__title" id="history-title">History</h2>
           </div>
           <span class="count-badge" id="history-count">0</span>
         </div>
@@ -193,9 +187,8 @@
             <canvas id="share-thumb" width="1080" height="1920"></canvas>
           </button>
           <div class="share__body">
-            <p class="eyebrow">Instagram story</p>
             <h2 class="panel__title" id="share-title">Today’s card</h2>
-            <p class="panel__lede">Day, total, balance and today’s standout decision as a 1080×1920 image.</p>
+            <p class="panel__lede">Today as a 1080×1920 image for your story.</p>
           </div>
           <button class="btn btn--primary share__cta" type="button" data-action="share">Create today’s card</button>
         </section>
@@ -205,8 +198,8 @@
           <details id="settings-details">
             <summary>
               <span>
-                <span class="eyebrow">Settings</span>
-                <span class="panel__title">Goal, start date, backup</span>
+                <span class="panel__title">Settings</span>
+                <span class="panel__meta">Goal, backups, theme, privacy</span>
               </span>
               <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
             </summary>
@@ -281,8 +274,7 @@
       <section class="war" id="war-hero" aria-labelledby="war-title">
         <div class="war__top">
           <div>
-            <p class="eyebrow">Battles</p>
-            <h1 class="war__title" id="war-title">Every battle ends.</h1>
+            <h1 class="war__title" id="war-title">Battles</h1>
           </div>
           <div class="war__actions">
             <button class="btn btn--ghost-light" type="button" data-action="private-toggle" id="private-btn">Private mode</button>
@@ -302,8 +294,7 @@
         <section class="panel" id="battles-active" aria-labelledby="active-title">
           <div class="panel__head">
             <div>
-              <p class="eyebrow">In the fight</p>
-              <h2 class="panel__title" id="active-title">Current battles</h2>
+              <h2 class="panel__title" id="active-title">Open</h2>
             </div>
           </div>
           <div id="active-list"></div>
@@ -312,8 +303,7 @@
         <section class="panel" id="battles-timeline" aria-labelledby="timeline-title">
           <div class="panel__head">
             <div>
-              <p class="eyebrow">Look back</p>
-              <h2 class="panel__title" id="timeline-title">What you’ve been through</h2>
+              <h2 class="panel__title" id="timeline-title">Timeline</h2>
             </div>
           </div>
           <div id="timeline-body"></div>
@@ -321,11 +311,11 @@
 
         <div class="grid-2">
           <section class="panel" aria-labelledby="repeat-title">
-            <div class="panel__head"><div><p class="eyebrow">Patterns</p><h2 class="panel__title" id="repeat-title">Problems that keep coming back</h2></div></div>
+            <div class="panel__head"><div><h2 class="panel__title" id="repeat-title">Keeps coming back</h2></div></div>
             <div id="repeat-body"></div>
           </section>
           <section class="panel" aria-labelledby="works-title">
-            <div class="panel__head"><div><p class="eyebrow">Your playbook</p><h2 class="panel__title" id="works-title">What works for you</h2></div></div>
+            <div class="panel__head"><div><h2 class="panel__title" id="works-title">What helps you</h2></div></div>
             <div id="works-body"></div>
           </section>
         </div>
@@ -333,8 +323,7 @@
         <section class="panel" aria-labelledby="won-title">
           <div class="panel__head">
             <div>
-              <p class="eyebrow">History</p>
-              <h2 class="panel__title" id="won-title">Battles behind you</h2>
+              <h2 class="panel__title" id="won-title">Behind you</h2>
             </div>
             <span class="count-badge" id="won-count">0</span>
           </div>
@@ -344,7 +333,6 @@
       </div>
 
       <section class="panel private-note" id="private-note" hidden>
-        <p class="eyebrow">Private mode is on</p>
         <h2 class="panel__title">Battles are hidden</h2>
         <p class="panel__lede">Safe for screen recording. Nothing from Battles ever appears on your Instagram card.</p>
         <button class="btn btn--primary" type="button" data-action="private-toggle">Show battles</button>
@@ -356,8 +344,7 @@
       <section class="war" aria-labelledby="record-title">
         <div class="war__top">
           <div>
-            <p class="eyebrow">The record</p>
-            <h1 class="war__title" id="record-title">Write it down now.</h1>
+            <h1 class="war__title" id="record-title">Record</h1>
           </div>
           <div class="war__actions">
             <button class="btn btn--ghost-light" type="button" data-action="voice-new">● Voice note <kbd>V</kbd></button>
@@ -365,7 +352,7 @@
           </div>
         </div>
         <dl class="war__stats" id="record-stats"></dl>
-        <p class="war__line">Future you will want proof of who you were while you built this.</p>
+
       </section>
 
       <div id="record-body" class="record-body">
@@ -373,10 +360,10 @@
 
         <section class="panel" aria-labelledby="bets-title">
           <div class="panel__head">
-            <div><p class="eyebrow">Big bets</p><h2 class="panel__title" id="bets-title">Decisions that change the direction</h2></div>
+            <div><h2 class="panel__title" id="bets-title">Big bets</h2></div>
             <button class="btn btn--soft" type="button" data-action="bet-new">+ Big bet</button>
           </div>
-          <p class="panel__lede">Quit, move, hire, invest, end something. Write down why and what you expect. The app brings it back at 3, 6 and 12 months so you see your real judgment, not the version you remember.</p>
+          <p class="panel__lede">Calls that change the direction. Write down why and what you expect; each comes back for review at 3, 6 and 12 months.</p>
           <div id="judgment"></div>
           <div id="bets-list"></div>
         </section>
@@ -384,7 +371,7 @@
         <div class="grid-2">
           <section class="panel" aria-labelledby="firsts-title">
             <div class="panel__head">
-              <div><p class="eyebrow">Firsts</p><h2 class="panel__title" id="firsts-title">Moments that only happen once</h2></div>
+              <div><h2 class="panel__title" id="firsts-title">Firsts</h2></div>
               <button class="btn btn--soft" type="button" data-action="first-new">+ First</button>
             </div>
             <div id="firsts-list"></div>
@@ -392,26 +379,25 @@
 
           <section class="panel" aria-labelledby="voice-title">
             <div class="panel__head">
-              <div><p class="eyebrow">Voice notes</p><h2 class="panel__title" id="voice-title">Your voice, right now</h2></div>
+              <div><h2 class="panel__title" id="voice-title">Voice notes</h2></div>
               <button class="btn btn--soft" type="button" data-action="voice-new">● Record</button>
             </div>
-            <p class="panel__lede">60 seconds on a great day, a terrible day or after a big call. Stored only on this computer.</p>
+            <p class="panel__lede">A minute in your own voice. Stored only on this computer.</p>
             <div id="voice-list"></div>
           </section>
         </div>
 
         <section class="panel" aria-labelledby="lessons-title">
           <div class="panel__head">
-            <div><p class="eyebrow">Lessons</p><h2 class="panel__title" id="lessons-title">Your principles, from your own life</h2></div>
+            <div><h2 class="panel__title" id="lessons-title">Lessons</h2></div>
             <button class="btn btn--soft" type="button" data-action="lesson-new">+ Lesson</button>
           </div>
-          <p class="panel__lede">Pain + reflection = progress. Save lessons from closed battles and reviewed bets with one tap, or write your own. Pin up to 10.</p>
+          <p class="panel__lede">Kept from closed battles, reviewed bets, or written here. Pin up to 10.</p>
           <div id="lessons-list"></div>
         </section>
       </div>
 
       <section class="panel private-note" id="record-private" hidden>
-        <p class="eyebrow">Private mode is on</p>
         <h2 class="panel__title">The record is hidden</h2>
         <p class="panel__lede">Safe for screen recording. Turn it off from the Battles tab or here.</p>
         <button class="btn btn--primary" type="button" data-action="private-toggle">Show the record</button>

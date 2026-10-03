@@ -151,4 +151,4 @@ npm run test:desktop # launches the packaged desktop app (build it first with --
 
 ## Credits
 
-Font: [Archivo](https://github.com/Omnibus-Type/Archivo), SIL Open Font License (see `fonts/`), subset to Latin and pinned to a regular and a condensed width.
+Fonts: [Archivo](https://github.com/Omnibus-Type/Archivo) for the interface and [Newsreader](https://github.com/productiontype/Newsreader) for headings, numbers and letters, both under the SIL Open Font License (see `fonts/`) and embedded so the app works offline.
