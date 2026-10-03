@@ -1198,3 +1198,98 @@ textarea.input { resize: vertical; min-height: 64px; font-family: inherit; line-
 .theme-swatch--terminal i:nth-child(1) { background: #FFB000; box-shadow: 0 0 8px rgba(255, 176, 0, 0.6); } .theme-swatch--terminal i:nth-child(2) { background: #2FBF5B; } .theme-swatch--terminal i:nth-child(3) { background: #F4E8C8; }
 @media (max-width: 420px) { .theme-opt small { display: none; } }
 @media (max-width: 380px) { #theme-btn { display: none; } }
+
+/* ── Day 1 ritual ────────────────────────────────────────────────────── */
+
+.ritual {
+  position: fixed; inset: 0; z-index: 90; overflow-y: auto;
+  background: var(--hero-bg); color: #fff;
+  background-image: radial-gradient(90% 70% at 85% 0%, rgba(176, 141, 60, 0.18), transparent 60%);
+  display: grid; place-items: center; padding: 48px var(--gutter);
+  animation: ritual-in 0.45s var(--ease-out);
+}
+.ritual.is-leaving { animation: ritual-out 0.35s var(--ease) forwards; }
+@keyframes ritual-in { from { opacity: 0; } }
+@keyframes ritual-out { to { opacity: 0; transform: scale(1.01); } }
+.ritual__inner { width: 100%; max-width: 640px; display: grid; gap: 18px; animation: step-in 0.4s var(--ease-out); }
+@keyframes step-in { from { opacity: 0; transform: translateY(10px); } }
+.ritual__mark { display: grid; grid-template-columns: repeat(3, 10px); gap: 4px; margin-bottom: 8px; }
+.ritual__mark i { width: 10px; height: 10px; background: rgba(255, 255, 255, 0.18); }
+.ritual__mark i:nth-child(5) { background: var(--gold-2); }
+.ritual__eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold-2); }
+.ritual__title { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: clamp(44px, 8vw, 84px); line-height: 0.92; letter-spacing: 0.005em; }
+.ritual__title--sm { font-size: clamp(32px, 5.5vw, 52px); }
+.ritual__title--xl { font-family: var(--font-num); font-size: clamp(88px, 18vw, 168px); color: var(--gold-2); }
+.ritual__lede { font-size: 17px; line-height: 1.55; color: rgba(255, 255, 255, 0.78); max-width: 56ch; }
+.ritual__lede b { color: #fff; }
+.ritual__actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.ritual__hint { font-size: 13.5px; color: rgba(255, 255, 255, 0.55); }
+.ritual__progress { display: flex; align-items: center; gap: 6px; }
+.ritual__progress i { width: 34px; height: 3px; background: rgba(255, 255, 255, 0.16); }
+.ritual__progress i.done { background: rgba(255, 255, 255, 0.6); }
+.ritual__progress i.now { background: var(--gold-2); }
+.ritual__progress span { margin-left: 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
+.ritual__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.r-chip {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.22); border-radius: var(--r-sm); background: transparent;
+  color: rgba(255, 255, 255, 0.85); font-weight: 650; font-size: 14.5px; transition: border-color 0.15s, background-color 0.15s;
+}
+.r-chip:hover { border-color: #fff; color: #fff; }
+.r-chip[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: #111315; }
+.r-chip b { font-family: var(--font-num); font-size: 13px; background: #111315; color: var(--gold-2); border-radius: 2px; padding: 1px 6px; }
+.ritual .input { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.22); color: #fff; }
+.ritual .input::placeholder { color: rgba(255, 255, 255, 0.38); }
+.ritual .input:focus { border-color: var(--gold-2); box-shadow: 0 0 0 3px rgba(201, 164, 90, 0.2); }
+.ritual__add { display: flex; gap: 8px; max-width: 420px; }
+.ritual__order { display: grid; gap: 1px; background: rgba(255, 255, 255, 0.1); border-radius: var(--r-sm); overflow: hidden; }
+.ritual__order li { display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; background: var(--hero-cell); }
+.ritual__rank { font-family: var(--font-num); font-weight: 900; font-size: 22px; color: var(--gold-2); min-width: 36px; }
+.ritual__order li:first-child .ritual__rank { font-size: 26px; }
+.ritual__name { flex: 1; font-weight: 700; font-size: 16px; }
+.r-mini { width: 34px; height: 34px; border: 1px solid rgba(255, 255, 255, 0.16); border-radius: var(--r-xs); background: transparent; color: rgba(255, 255, 255, 0.75); font-size: 15px; }
+.r-mini:hover { border-color: #fff; color: #fff; }
+.r-mini[disabled] { opacity: 0.25; pointer-events: none; }
+.ritual__whys { display: grid; gap: 14px; }
+.ritual__why { display: grid; gap: 6px; }
+.ritual__why span { font-size: 12.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold-2); }
+textarea.ritual__letter, .ritual__letter {
+  min-height: 240px; resize: vertical; line-height: 1.65; font-size: 17px;
+  font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+}
+.ritual .ritual__letter { background: #F6F1E4; color: #1D1A14; border-color: #F6F1E4; }
+.ritual .ritual__letter::placeholder { color: #9A927F; }
+.ritual__letter--light { background: var(--gold-soft); }
+.ritual__inner.is-sealing .ritual__letter { animation: seal 0.7s var(--ease) forwards; transform-origin: 50% 0; }
+@keyframes seal { 40% { transform: scaleY(0.5); opacity: 0.8; } to { transform: scaleY(0.04) translateY(-40px); opacity: 0; } }
+.ritual__grid { display: grid; grid-template-columns: repeat(25, 1fr); gap: 3px; max-width: 420px; margin-bottom: 10px; }
+.ritual__grid i { aspect-ratio: 1; background: rgba(255, 255, 255, 0.1); }
+.ritual__grid i.on { background: var(--gold-2); box-shadow: 0 0 10px rgba(201, 164, 90, 0.7); }
+.ritual__inner--done { text-align: left; }
+@media (max-width: 520px) {
+  .ritual { place-items: start center; padding-top: 32px; }
+  .ritual__lede { font-size: 15.5px; }
+  .ritual__actions .btn { flex: 1 1 auto; }
+}
+:root[data-theme="terminal"] .ritual { background-image: radial-gradient(90% 70% at 85% 0%, rgba(255, 176, 0, 0.14), transparent 60%), repeating-linear-gradient(0deg, rgba(255, 176, 0, 0.03) 0 1px, transparent 1px 3px); }
+:root[data-theme="terminal"] .ritual__title--xl { text-shadow: 0 0 30px rgba(255, 176, 0, 0.45); }
+
+/* ── Sealed letter card ──────────────────────────────────────────────── */
+
+.letter { display: flex; gap: 22px; align-items: flex-start; border-color: var(--gold-line); background: linear-gradient(180deg, var(--gold-soft), var(--surface) 70%); }
+.letter__seal {
+  flex: none; width: 74px; height: 74px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-family: var(--font-num); font-weight: 900; font-size: 18px; letter-spacing: 0.02em; color: #F6E7C4;
+  background: radial-gradient(circle at 35% 30%, #A3342A, #6E1A14 70%);
+  box-shadow: inset 0 0 0 5px rgba(0, 0, 0, 0.14), inset 0 0 0 6px rgba(255, 255, 255, 0.12), 0 6px 14px -6px rgba(110, 26, 20, 0.7);
+}
+.letter__seal--open { background: none; color: var(--gold-ink); border: 2px dashed var(--gold-line); box-shadow: none; }
+.letter__seal--broken { opacity: 0.55; clip-path: polygon(0 0, 55% 0, 42% 48%, 60% 100%, 0 100%); }
+.letter__body { flex: 1; min-width: 0; }
+.letter .panel__lede { margin-top: 6px; }
+.letter__bar { height: 6px; background: var(--surface-3); border-radius: 3px; overflow: hidden; max-width: 420px; }
+.letter__bar i { display: block; height: 100%; background: var(--gold); }
+.letter__text { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; font-size: 17px; line-height: 1.7; color: var(--ink); margin-top: 8px; max-width: 68ch; }
+.letter__sign { margin-top: 14px; color: var(--ink-3); font-size: 13px; font-style: italic; }
+@media (max-width: 520px) { .letter { flex-direction: column; gap: 14px; } .letter__seal { width: 58px; height: 58px; font-size: 15px; } }

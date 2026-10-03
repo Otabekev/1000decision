@@ -136,7 +136,12 @@
       bets: [],
       firsts: [],
       lessons: [],
-      voice: []
+      voice: [],
+      letter: null,
+      seasons: [],
+      hardMoments: [],
+      onboarded: false,
+      lock: null
     };
   }
 
@@ -225,6 +230,20 @@
         out.voice.push({ id: str(n.id, 80), title: str(n.title, 120), tag: VOICE_TAGS.some(function (x) { return x[0] === n.tag; }) ? n.tag : 'other', at: new Date(Date.parse(n.at)).toISOString(), duration: Math.max(0, +n.duration || 0), mime: str(n.mime, 60) || 'audio/webm' });
       });
     }
+    if (src.letter && typeof src.letter.text === 'string' && src.letter.text.trim() && isFinite(Date.parse(src.letter.sealedAt))) {
+      out.letter = { text: src.letter.text.slice(0, 8000), sealedAt: new Date(Date.parse(src.letter.sealedAt)).toISOString(), openedAt: isFinite(Date.parse(src.letter.openedAt)) ? new Date(Date.parse(src.letter.openedAt)).toISOString() : null, season: +src.letter.season || 1 };
+    }
+    if (Array.isArray(src.seasons)) {
+      out.seasons = src.seasons.filter(function (x) { return x && isFinite(Date.parse(x.endedAt)); }).map(function (x) {
+        return { number: +x.number || 1, startDate: parseYmd(x.startDate) ? x.startDate : null, endedAt: new Date(Date.parse(x.endedAt)).toISOString(), decisions: +x.decisions || 0, days: +x.days || 0, letter: typeof x.letter === 'string' ? x.letter.slice(0, 8000) : '' };
+      });
+    }
+    if (Array.isArray(src.hardMoments)) {
+      out.hardMoments = src.hardMoments.filter(function (h) { return h && isFinite(Date.parse(h.at)); }).map(function (h) { return { at: new Date(Date.parse(h.at)).toISOString(), outcome: h.outcome === 'logged' ? 'logged' : 'closed' }; }).slice(-1000);
+    }
+    // Existing users who already have data skip the first-run ritual.
+    out.onboarded = src.onboarded === true || (Array.isArray(src.categories) && src.categories.length > 0);
+    if (src.lock && typeof src.lock.hash === 'string' && typeof src.lock.salt === 'string') out.lock = { hash: src.lock.hash.slice(0, 128), salt: src.lock.salt.slice(0, 64) };
     if (Array.isArray(src.checkins)) {
       out.checkins = src.checkins.filter(function (c) { return c && isFinite(Date.parse(c.at)); }).map(function (c) { return { at: new Date(Date.parse(c.at)).toISOString() }; }).slice(-200);
     }
@@ -431,7 +450,9 @@
     applyTheme();
     scheduleThumb();
     $('.fab').classList.toggle('is-attn', v.today === 0 && state.categories.length > 0);
+    renderHooks.forEach(function (fn) { try { fn(v); } catch (e) { if (window.console) console.error(e); } });
   }
+  var renderHooks = [];
 
   function renderHero(v, opts) {
     var goal = state.settings.goal;
@@ -3141,7 +3162,7 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (sheetEl.open || confirmEl.open) return;
+    if (sheetEl.open || confirmEl.open || document.querySelector('.td-overlay')) return;
     var tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
     if (e.key === 't' || e.key === 'T') {
@@ -3210,7 +3231,40 @@
   applyView();
 
   initReorder();
+  // Small internal API for the feature modules (onboarding, finale, backup, playbook).
+  window.TD = {
+    get state() { return state; },
+    set state(next) { state = next; },
+    normalize: normalize,
+    defaults: defaults,
+    save: save,
+    commit: commit,
+    render: render,
+    derive: derive,
+    onRender: function (fn) { renderHooks.push(fn); },
+    toast: toast,
+    confirm: confirmDialog,
+    openSheet: openSheet,
+    closeSheet: closeSheet,
+    sheetHead: sheetHead,
+    openAdd: openAdd,
+    openRecorder: openRecorder,
+    addCategory: addCategory,
+    findCategory: findCategory,
+    downloadBlob: downloadBlob,
+    setView: setView,
+    hc: hc,
+    icon: icon,
+    util: { $: $, $$: $$, esc: esc, uid: uid, ymd: ymd, parseYmd: parseYmd, dayIndex: dayIndex, dayNumber: dayNumber, fmtNum: fmtNum, pct: pct, plural: plural, fld: fld, clamp: clamp, fmtDate: fmtDate, fmtTime: fmtTime, reducedMotion: reducedMotion },
+    PALETTE: PALETTE,
+    SUGGESTED: SUGGESTED,
+    LOCALE: LOCALE,
+    STORAGE_KEY: STORAGE_KEY,
+    ui: ui
+  };
+
   render({ intro: true });
+  document.dispatchEvent(new CustomEvent('td:ready'));
 
   if (firstRun && !reducedMotion()) {
     $('#hero-total').dataset.value = 0;

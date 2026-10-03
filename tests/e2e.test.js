@@ -88,6 +88,9 @@ const stored = (page) => page.evaluate((key) => JSON.parse(localStorage.getItem(
 test('first run: empty state, quick categories, first decision', async () => {
   const { ctx, page, errors } = await open(null);
   assert.equal(await page.textContent('#hero-total'), '0');
+  await page.click('.ritual [data-r="skip"]');
+  await page.waitForSelector('.ritual', { state: 'detached' });
+  assert.equal((await stored(page)).onboarded, true);
   await page.click('[data-action="quick-category"][data-name="Gym"]');
   await page.click('[data-action="quick-category"][data-name="Money"]');
   let s = await stored(page);
@@ -443,6 +446,61 @@ test('themes: switch with T and from settings; saved and applied on reload', asy
   await page.reload();
   await page.waitForSelector('#hero-total');
   assert.equal(await page.getAttribute('html', 'data-theme'), 'terminal');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('day 1 ritual: priorities in order, whys, sealed letter, first decision', async () => {
+  const { ctx, page, errors } = await open(null, { width: 1280, height: 900 });
+  await page.click('.ritual [data-r="next"]');
+  await page.click('.r-chip[data-name="Money"]');
+  await page.click('.r-chip[data-name="Gym"]');
+  await page.fill('.ritual [name="custom"]', 'Reading');
+  await page.press('.ritual [name="custom"]', 'Enter');
+  await page.click('.ritual [data-r="up"][data-i="1"]'); // Gym above Money
+  assert.deepEqual(await page.$$eval('.ritual__name', (els) => els.map((e) => e.textContent)), ['Gym', 'Money', 'Reading']);
+  await page.click('.ritual [data-r="next"]');
+  await page.fill('[data-why="Gym"]', 'so I am strong at 60');
+  await page.click('.ritual [data-r="next"]');
+  await page.click('.ritual [data-r="seal"]');
+  assert.match(await page.getAttribute('[data-letter]', 'class'), /is-invalid/);
+  await page.fill('[data-letter]', 'Dear future me, do not stop.');
+  await page.click('.ritual [data-r="seal"]');
+  await page.click('.r-chip[data-r="firstcat"][data-name="Money"]');
+  await page.fill('[data-first]', 'Cancelled an unused subscription');
+  await page.press('[data-first]', 'Enter');
+  await page.waitForSelector('.ritual__title--xl');
+  const s = await stored(page);
+  assert.equal(s.onboarded, true);
+  assert.deepEqual(s.categories.map((c) => [c.name, c.priorityRank]), [['Gym', 1], ['Money', 2], ['Reading', 3]]);
+  assert.equal(s.categories[0].why, 'so I am strong at 60');
+  assert.equal(s.letter.text, 'Dear future me, do not stop.');
+  assert.equal(s.letter.openedAt, null);
+  assert.equal(s.decisions.length, 1);
+  assert.equal(s.decisions[0].categoryName, 'Money');
+  await page.click('.ritual [data-r="enter"]');
+  await page.waitForSelector('.ritual', { state: 'detached' });
+  assert.equal(await page.textContent('#hero-total'), '1');
+  await page.click('.tab[data-view="record"]');
+  assert.match(await page.textContent('#letter-card'), /999 to go/);
+  assert.doesNotMatch(await page.textContent('#letter-card'), /do not stop/);
+  await page.reload();
+  await page.waitForSelector('#letter-card');
+  assert.equal(await page.$('.ritual'), null);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('letter can be written later from the Record tab', async () => {
+  const { ctx, page, errors } = await open(sample());
+  assert.equal(await page.$('.ritual'), null);
+  await page.click('.tab[data-view="record"]');
+  await page.click('#letter-card [data-action="letter-write"]');
+  await page.fill('.sheet textarea[name="letter"]', 'Remember why you started.');
+  await page.click('.sheet .add-form button[type="submit"]');
+  await page.waitForFunction(() => !document.getElementById('sheet').open);
+  assert.equal((await stored(page)).letter.text, 'Remember why you started.');
+  assert.match(await page.textContent('#letter-card'), /Sealed on/);
   assert.deepEqual(errors, []);
   await ctx.close();
 });
