@@ -1,0 +1,59 @@
+{
+  "name": "1000-decisions-desktop",
+  "productName": "1000 Decisions",
+  "version": "1.0.0",
+  "private": true,
+  "description": "1000 Decisions as a desktop app for Windows and macOS.",
+  "author": "1000 Decisions",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --publish never",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
+    "release": "electron-builder --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "app.thousanddecisions.desktop",
+    "productName": "1000 Decisions",
+    "copyright": "Copyright © 2026",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json",
+      {
+        "from": "..",
+        "to": "app",
+        "filter": ["index.html", "manifest.webmanifest", "css/**", "js/**", "fonts/**", "icons/**"]
+      }
+    ],
+    "publish": [{ "provider": "github", "owner": "Otabekev", "repo": "1000decision", "releaseType": "release" }],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "artifactName": "1000-Decisions-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "1000 Decisions"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [{ "target": "dmg", "arch": ["universal"] }, { "target": "zip", "arch": ["universal"] }],
+      "artifactName": "1000-Decisions-${version}-mac.${ext}",
+      "extendInfo": { "NSMicrophoneUsageDescription": "1000 Decisions records voice notes only when you press record." }
+    },
+    "linux": { "target": ["AppImage"], "category": "Utility" }
+  }
+}

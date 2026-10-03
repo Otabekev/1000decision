@@ -20,6 +20,7 @@ var ASSETS = [
   './js/finale.js',
   './js/trust.js',
   './js/playbook.js',
+  './js/desktop.js',
   './css/fonts.css',
   './manifest.webmanifest',
   './icons/favicon.svg',

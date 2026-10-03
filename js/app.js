@@ -514,10 +514,13 @@
     });
     var activeDays = Object.keys(active).length;
     var avg = v.total / elapsed;
-    var pace7 = v.health.total7 / 7;
+    // Pace over the last 7 days, or fewer if you started less than a week ago.
+    var paceDays = clamp(v.day, 1, 7);
+    var pace7 = v.health.total7 / paceDays;
     var remaining = Math.max(0, goal - v.total);
     var finish;
     if (!remaining) finish = { value: 'Done', note: 'Goal reached' };
+    else if (v.day < 3) finish = { value: '—', note: 'Your projection appears on Day 3, once there’s a pace to measure' };
     else if (!pace7) finish = { value: '—', note: 'Log decisions this week to get a projection' };
     else {
       var daysLeft = Math.ceil(remaining / pace7);
@@ -525,7 +528,7 @@
       date.setDate(date.getDate() + daysLeft);
       finish = {
         value: date.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric', year: date.getFullYear() !== v.now.getFullYear() ? 'numeric' : undefined }),
-        note: daysLeft + ' days at your 7-day pace of ' + pace7.toFixed(1) + ' a day'
+        note: daysLeft + ' days at your ' + paceDays + '-day pace of ' + pace7.toFixed(1) + ' a day'
       };
     }
     var maxWeek = Math.max(1, week.reduce(function (m, d) { return Math.max(m, d.total); }, 0));

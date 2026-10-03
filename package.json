@@ -6,7 +6,10 @@
   "scripts": {
     "start": "npx --yes serve -l 8080 .",
     "test": "node --test tests/health.test.js tests/insights.test.js tests/battles.test.js tests/record.test.js",
-    "test:e2e": "node --test tests/e2e.test.js"
+    "test:e2e": "node --test tests/e2e.test.js",
+    "desktop": "cd desktop && npm install && npm start",
+    "desktop:build": "cd desktop && npm install && npm run dist",
+    "test:desktop": "node tests/desktop.smoke.js"
   },
   "devDependencies": {
     "playwright": "^1.56.1"
