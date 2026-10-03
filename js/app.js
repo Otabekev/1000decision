@@ -12,6 +12,7 @@
 
   var H = window.TDHealth;
   var I = window.TDInsights;
+  var BT = window.TDBattles;
   var Card = window.TDCard;
 
   var STORAGE_KEY = 'thousand-decisions:v1';
@@ -120,10 +121,12 @@
       version: 1,
       categories: [],
       decisions: [],
-      settings: { goal: 1000, startDate: ymd(new Date()), signature: '', lastBackupAt: null, showWhyOnCard: false },
+      settings: { goal: 1000, startDate: ymd(new Date()), signature: '', lastBackupAt: null, showWhyOnCard: false, privateMode: false, checkinDays: 14 },
       // One-tap answers to "What pulled you away?" and when the question was last shown.
       reasons: [],
-      prompt: { lastAsked: null, ignored: 0, pausedUntil: null }
+      prompt: { lastAsked: null, ignored: 0, pausedUntil: null },
+      battles: [],
+      checkins: []
     };
   }
 
@@ -152,6 +155,34 @@
     out.settings.signature = typeof s.signature === 'string' ? s.signature.slice(0, 40) : '';
     out.settings.lastBackupAt = typeof s.lastBackupAt === 'string' ? s.lastBackupAt : null;
     out.settings.showWhyOnCard = s.showWhyOnCard === true;
+    out.settings.privateMode = s.privateMode === true;
+    out.settings.checkinDays = [14, 30].indexOf(+s.checkinDays) !== -1 ? +s.checkinDays : 14;
+
+    if (Array.isArray(src.battles)) {
+      src.battles.forEach(function (b) {
+        if (!b || typeof b.title !== 'string' || !b.title.trim() || !isFinite(Date.parse(b.startedAt))) return;
+        var status = ['active', 'won', 'passed', 'accepted'].indexOf(b.status) !== -1 ? b.status : 'active';
+        var ended = status !== 'active' && isFinite(Date.parse(b.endedAt)) ? new Date(Date.parse(b.endedAt)).toISOString() : null;
+        out.battles.push({
+          id: typeof b.id === 'string' && b.id ? b.id : uid(),
+          title: b.title.trim().slice(0, 120),
+          area: typeof b.area === 'string' && b.area.trim() ? b.area.trim().slice(0, MAX_NAME) : 'Other',
+          weight: clamp(parseInt(b.weight, 10) || 3, 1, 5),
+          step: typeof b.step === 'string' ? b.step.trim().slice(0, 140) : '',
+          startedAt: new Date(Date.parse(b.startedAt)).toISOString(),
+          status: ended ? status : 'active',
+          endedAt: ended,
+          helped: Array.isArray(b.helped) ? b.helped.filter(function (h) { return BT.HELPED.some(function (x) { return x[0] === h; }); }) : [],
+          note: typeof b.note === 'string' ? b.note.trim().slice(0, 160) : '',
+          updates: Array.isArray(b.updates) ? b.updates.filter(function (u) { return u && isFinite(Date.parse(u.at)); }).map(function (u) {
+            return { at: new Date(Date.parse(u.at)).toISOString(), weight: u.weight ? clamp(parseInt(u.weight, 10) || 3, 1, 5) : null, note: typeof u.note === 'string' ? u.note.trim().slice(0, 200) : '' };
+          }) : []
+        });
+      });
+    }
+    if (Array.isArray(src.checkins)) {
+      out.checkins = src.checkins.filter(function (c) { return c && isFinite(Date.parse(c.at)); }).map(function (c) { return { at: new Date(Date.parse(c.at)).toISOString() }; }).slice(-200);
+    }
 
     if (Array.isArray(src.reasons)) {
       out.reasons = src.reasons.filter(function (r) {
@@ -266,7 +297,9 @@
     openEntries: Object.create(null),
     cardPick: null,
     introDone: false,
-    proofAll: false
+    proofAll: false,
+    view: 'decisions',
+    wonFilter: null
   };
 
   // ── Derived view data ──────────────────────────────────────────────────
@@ -346,6 +379,7 @@
     renderProof(v);
     renderPatterns(v);
     renderHistory(v, opts);
+    renderBattles(v);
     renderSettings();
     scheduleThumb();
     $('.fab').classList.toggle('is-attn', v.today === 0 && state.categories.length > 0);
@@ -535,7 +569,8 @@
     var el = $('#pulse');
     var line = I.topLine(v.patterns, v.now);
     var q = questionFor(v);
-    if (!line && !q) {
+    var ci = state.settings.privateMode ? '' : checkinHtml(v);
+    if (!line && !q && !ci) {
       el.hidden = true;
       el.innerHTML = '';
       return;
@@ -559,7 +594,7 @@
         '<button type="button" class="icon-btn" data-action="reason-dismiss" aria-label="Dismiss">' + icon('close') + '</button></div>' +
         '</div>';
     }
-    el.innerHTML = html;
+    el.innerHTML = html + ci;
     el.hidden = false;
   }
 
@@ -2100,6 +2135,409 @@
     });
   }
 
+
+  // ── Battles ────────────────────────────────────────────────────────────
+  function checkinHtml(v) {
+    if (!BT.checkinDue(state.battles, state.checkins, v.now, state.settings.checkinDays)) return '';
+    var first = !state.battles.length && !state.checkins.length;
+    return '<div class="pulse__ask checkin-row">' +
+      '<p>' + (first ? 'Battles: track the hard things you go through, so you can see you always get through them.' : (state.settings.checkinDays === 30 ? 'A month' : 'Two weeks') + ' since your last check-in.') + ' <span>Anything weighing on you right now?</span></p>' +
+      '<div class="pulse__answers"><button type="button" class="chip" data-action="battle-new">Add a battle</button><button type="button" class="chip" data-action="checkin-calm">All good</button></div></div>';
+  }
+
+  function areaOptions() {
+    var list = BT.AREAS.slice(0, -1);
+    state.categories.forEach(function (c) { if (list.indexOf(c.name) === -1 && list.length < 10) list.push(c.name); });
+    state.battles.forEach(function (b) { if (list.indexOf(b.area) === -1 && b.area !== 'Other' && list.length < 12) list.push(b.area); });
+    list.push('Other');
+    return list;
+  }
+
+  function weightSquares(w, cls) {
+    var out = '<span class="wsq' + (cls ? ' ' + cls : '') + '" aria-label="Weight ' + w + ' of 5">';
+    for (var i = 1; i <= 5; i++) out += '<i class="' + (i <= w ? 'on' : '') + '"></i>';
+    return out + '</span>';
+  }
+
+  function fmtDate(iso) {
+    var d = new Date(iso);
+    var o = { month: 'short', day: 'numeric' };
+    if (d.getFullYear() !== new Date().getFullYear()) o.year = 'numeric';
+    return d.toLocaleDateString(LOCALE, o);
+  }
+
+  function helpedLabel(key) {
+    var h = BT.HELPED.filter(function (x) { return x[0] === key; })[0];
+    return h ? h[1] : key;
+  }
+
+  function beenHereHtml(list) {
+    if (!list.length) return '';
+    return '<div class="been"><p class="been__title">You’ve been here before.</p>' + list.map(function (b) {
+      return '<div class="been__item"><p><b>' + esc(fmtDate(b.startedAt)) + ' · “' + esc(b.title) + '”</b>, heavy ' + b.weight + '/5. <b>Over in ' + BT.days(b) + ' ' + plural(BT.days(b), 'day') + '.</b></p>' +
+        (b.helped && b.helped.length ? '<p>What helped: ' + b.helped.map(function (h) { return esc(helpedLabel(h).toLowerCase()); }).join(', ') + '.</p>' : '') +
+        (b.note ? '<p class="been__note">Your note: “' + esc(b.note) + '”</p>' : '') + '</div>';
+    }).join('') + '</div>';
+  }
+
+  function applyView() {
+    var battles = ui.view === 'battles';
+    $('#view-decisions').hidden = battles;
+    $('#view-battles').hidden = !battles;
+    $$('.tab').forEach(function (t) {
+      if (t.dataset.view === ui.view) t.setAttribute('aria-current', 'page');
+      else t.removeAttribute('aria-current');
+    });
+    document.body.classList.toggle('is-battles', battles);
+  }
+
+  function renderBattles(v) {
+    var priv = state.settings.privateMode;
+    var activeList = BT.active(state.battles);
+    var countEl = $('#tab-battles-count');
+    countEl.hidden = priv || !activeList.length;
+    countEl.textContent = activeList.length;
+    $('#private-btn').textContent = priv ? 'Private mode: on' : 'Private mode';
+    $('#private-btn').setAttribute('aria-pressed', String(priv));
+    $('#battles-body').hidden = priv;
+    $('#private-note').hidden = !priv;
+    var sum = BT.summary(state.battles, v.now);
+    $('#war-stats').innerHTML = priv
+      ? '<div><dt>Battles</dt><dd>—</dd></div>'
+      : '<div><dt>Battles fought</dt><dd>' + sum.fought + '</dd></div>' +
+        '<div><dt>Behind you</dt><dd>' + sum.over + '</dd></div>' +
+        '<div><dt>Average length</dt><dd>' + (sum.avgDays ? sum.avgDays + '<small>days</small>' : '—') + '</dd></div>' +
+        '<div><dt>In the fight</dt><dd>' + sum.open + '</dd></div>';
+    var line;
+    if (priv) line = 'Private mode is on.';
+    else if (!sum.fought) line = 'Write down what you’re fighting. In a few months you’ll see that every one of them ended.';
+    else if (!sum.open) line = 'Every battle you’ve logged is behind you.';
+    else if (!sum.over) line = 'You’re in it now. Log it, keep deciding, and mark it over when it’s done.';
+    else line = 'Every one of them ended, except the ' + (sum.open === 1 ? 'one' : sum.open) + ' you’re in now.';
+    $('#war-line').textContent = line;
+    if (priv) return;
+
+    var ci = checkinHtml(v);
+    $('#checkin').hidden = !ci;
+    $('#checkin').innerHTML = ci;
+
+    // Current battles
+    $('#active-list').innerHTML = activeList.length ? '<div class="fights">' + activeList.map(function (b) {
+      var d = BT.days(b, v.now);
+      var typ = BT.typicalDays(state.battles, b.area);
+      var w = BT.weightNow(b);
+      var care = BT.careLine(b, state.battles, v.now);
+      var progress = typ ? Math.min(100, (d / typ.days) * 100) : null;
+      return '<article class="fight">' +
+        '<button type="button" class="fight__main" data-action="battle-open" data-id="' + b.id + '">' +
+        '<span class="fight__area">' + esc(b.area) + '</span>' + weightSquares(w) +
+        '<h3 class="fight__title">' + esc(b.title) + '</h3>' +
+        '<p class="fight__day"><b>Day ' + d + '</b>' + (typ ? ' · your ' + (typ.basis === 'area' ? esc(b.area) + ' battles' : 'battles') + ' usually end in ~' + typ.days + ' days' : ' · started ' + esc(fmtDate(b.startedAt))) + '</p>' +
+        (progress !== null ? '<span class="fight__bar"><i style="width:' + progress.toFixed(0) + '%"></i></span>' : '') +
+        '<p class="fight__kept">' + BT.decisionsSince(b, state.decisions) + ' decisions made since it started</p>' +
+        (b.step ? '<p class="fight__step">Next small step: ' + esc(b.step) + '</p>' : '') +
+        (care ? '<p class="fight__care">' + esc(care) + '</p>' : '') +
+        '</button>' +
+        '<div class="fight__actions"><button type="button" class="btn btn--soft" data-action="battle-update" data-id="' + b.id + '">Update</button>' +
+        '<button type="button" class="btn btn--primary" data-action="battle-close" data-id="' + b.id + '">It’s over</button></div>' +
+        '</article>';
+    }).join('') + '</div>'
+      : '<div class="empty"><div class="empty__art" aria-hidden="true">' + new Array(16).join('<i></i>') + '</div><strong>No open battles</strong><span>When something starts weighing on you, log it here. It takes ten seconds.</span>' +
+        '<button type="button" class="btn btn--primary" data-action="battle-new" style="margin-top:10px">New battle</button></div>';
+
+    renderTimeline(v);
+
+    // Repeats
+    var rep = BT.repeats(state.battles, v.now);
+    $('#repeat-body').innerHTML = rep.length ? rep.map(function (r) {
+      return '<div class="repeat"><p class="repeat__head"><b>' + esc(r.area) + ': ' + r.count + ' battles in 6 months</b>, ~' + r.avgDays + ' days each.</p>' +
+        '<p>Whatever you’re doing ends them, but it isn’t fixing the cause.</p>' +
+        '<p class="repeat__titles">' + r.titles.map(function (t) { return '“' + esc(t) + '”'; }).join(' · ') + '</p></div>';
+    }).join('') : '<p class="chart-empty">Nothing repeating yet. If the same kind of battle shows up 3 times in 6 months, it lands here.</p>';
+
+    // What works
+    var works = BT.whatWorks(state.battles);
+    var dis = BT.disciplineUnderFire(state.battles, state.decisions, v.now);
+    var worksHtml = works.length ? '<ul class="works">' + works.map(function (x, i) {
+      var max = works[works.length - 1].avgDays || 1;
+      return '<li><span class="works__label">' + esc(x.label) + '</span><span class="works__bar"><i class="' + (i === 0 ? 'best' : '') + '" style="width:' + Math.max(6, (x.avgDays / max) * 100).toFixed(0) + '%"></i></span><b>' + x.avgDays + ' days</b><small>' + x.count + ' battles</small></li>';
+    }).join('') + '</ul><p class="works__note">Average length of battles where each one helped. Shorter is better.</p>'
+      : '<p class="chart-empty">When you mark battles over and tick what helped, this ranks what actually works for you.</p>';
+    if (dis && dis.ratio !== null) {
+      var pctv = Math.round(dis.ratio * 100);
+      worksHtml += '<div class="fire"><p class="fire__big">' + pctv + '%</p><p>' + (pctv >= 85
+        ? 'of your normal discipline, kept even during hard times. That’s rare.'
+        : 'of your normal discipline during hard times. Small decisions are what carry you through; one a day is enough.') + '</p></div>';
+    }
+    $('#works-body').innerHTML = worksHtml;
+
+    // History
+    var done = BT.closed(state.battles).sort(function (a, b) { return Date.parse(b.endedAt) - Date.parse(a.endedAt); });
+    $('#won-count').textContent = done.length;
+    var areas = [];
+    done.forEach(function (b) { if (areas.indexOf(b.area) === -1) areas.push(b.area); });
+    if (ui.wonFilter && areas.indexOf(ui.wonFilter) === -1) ui.wonFilter = null;
+    $('#won-filters').hidden = areas.length < 2;
+    $('#won-filters').innerHTML = '<button type="button" class="chip" data-action="won-filter" data-area="" aria-pressed="' + !ui.wonFilter + '">All <b>' + done.length + '</b></button>' +
+      areas.map(function (a) { return '<button type="button" class="chip" data-action="won-filter" data-area="' + esc(a) + '" aria-pressed="' + (ui.wonFilter === a) + '">' + esc(a) + ' <b>' + done.filter(function (b) { return b.area === a; }).length + '</b></button>'; }).join('');
+    var shown = done.filter(function (b) { return !ui.wonFilter || b.area === ui.wonFilter; });
+    if (!shown.length) {
+      $('#won-list').innerHTML = '<p class="chart-empty">Battles you mark over are kept here, sorted by when they ended.</p>';
+      return;
+    }
+    var html = '', lastMonth = '';
+    shown.forEach(function (b) {
+      var m = new Date(b.endedAt).toLocaleDateString(LOCALE, { month: 'long', year: 'numeric' });
+      if (m !== lastMonth) {
+        html += (lastMonth ? '</ul>' : '') + '<h3 class="day-head">' + esc(m) + '</h3><ul class="wonlist">';
+        lastMonth = m;
+      }
+      var st = BT.STATUSES[b.status];
+      html += '<li><button type="button" class="won" data-action="battle-open" data-id="' + b.id + '">' +
+        '<span class="won__status won__status--' + b.status + '">' + esc(st.label) + '</span>' +
+        '<span class="won__main"><b>' + esc(b.title) + '</b><small>' + esc(b.area) + ' · ' + esc(fmtDate(b.startedAt)) + ' → ' + esc(fmtDate(b.endedAt)) + (b.helped.length ? ' · ' + b.helped.map(helpedLabel).map(esc).join(', ') : '') + '</small>' +
+        (b.note ? '<em>“' + esc(b.note) + '”</em>' : '') + '</span>' +
+        weightSquares(b.weight, 'wsq--sm') + '<span class="won__days">' + BT.days(b) + '<small>days</small></span></button></li>';
+    });
+    $('#won-list').innerHTML = html + '</ul>';
+  }
+
+  function renderTimeline(v) {
+    var body = $('#timeline-body');
+    if (!state.battles.length) {
+      body.innerHTML = '<p class="chart-empty">Your battles will appear here as bars on a timeline, so you can see the hard stretches and that they always ended.</p>';
+      return;
+    }
+    var lanes = [];
+    BT.AREAS.concat(state.battles.map(function (b) { return b.area; })).forEach(function (a) {
+      if (lanes.indexOf(a) === -1 && state.battles.some(function (b) { return b.area === a; })) lanes.push(a);
+    });
+    var now = v.now.getTime();
+    var first = Math.min.apply(null, state.battles.map(function (b) { return Date.parse(b.startedAt); }));
+    var from = Math.min(first, now - 90 * 86400000) - 3 * 86400000;
+    var to = now + 4 * 86400000;
+    var W = 1000, L = 112, R = 10, laneH = 40, top = 10, bottom = 28;
+    var Hh = top + lanes.length * laneH + bottom;
+    function x(ms) { return L + (W - L - R) * (ms - from) / (to - from); }
+    var out = [];
+    // month ticks
+    var m = new Date(from); m.setDate(1); m.setHours(0, 0, 0, 0); m.setMonth(m.getMonth() + 1);
+    var step = (to - from) / 86400000 > 400 ? 3 : 1;
+    while (m.getTime() < to) {
+      var mx = x(m.getTime());
+      out.push('<line class="grid" x1="' + mx.toFixed(1) + '" x2="' + mx.toFixed(1) + '" y1="' + top + '" y2="' + (Hh - bottom) + '"/>');
+      if (Math.abs(mx - x(now)) > 70) out.push('<text x="' + (mx + 4).toFixed(1) + '" y="' + (Hh - 9) + '">' + m.toLocaleDateString(LOCALE, { month: 'short', year: m.getMonth() === 0 ? '2-digit' : undefined }) + '</text>');
+      m.setMonth(m.getMonth() + step);
+    }
+    var tx = x(now);
+    out.push('<line x1="' + tx.toFixed(1) + '" x2="' + tx.toFixed(1) + '" y1="' + (top - 4) + '" y2="' + (Hh - bottom) + '" stroke="#B08D3C" stroke-width="2"/><text x="' + (tx - 4).toFixed(1) + '" y="' + (Hh - 9) + '" text-anchor="end" style="fill:#8C6A24;font-weight:700">Today</text>');
+    lanes.forEach(function (a, i) {
+      var y = top + i * laneH;
+      out.push('<text x="0" y="' + (y + laneH / 2 + 4) + '" style="font-weight:700;fill:var(--ink-2)">' + esc(a) + '</text>');
+      out.push('<line class="axis" x1="' + L + '" x2="' + (W - R) + '" y1="' + (y + laneH - 0.5) + '" y2="' + (y + laneH - 0.5) + '"/>');
+      state.battles.filter(function (b) { return b.area === a; }).forEach(function (b) {
+        var s0 = x(Date.parse(b.startedAt));
+        var e0 = x(b.status === 'active' ? now : Date.parse(b.endedAt) + 86400000);
+        var wv = Math.max(6, e0 - s0);
+        var alpha = (0.28 + b.weight * 0.14).toFixed(2);
+        out.push('<rect class="tl-bar" data-action="battle-open" data-id="' + b.id + '" x="' + s0.toFixed(1) + '" y="' + (y + 9) + '" width="' + wv.toFixed(1) + '" height="' + (laneH - 18) + '" rx="3" fill="rgba(17,19,21,' + alpha + ')"' +
+          (b.status === 'active' ? ' stroke="#B08D3C" stroke-width="2.5"' : '') + '><title>' + esc(b.title) + ' · ' + BT.days(b, v.now) + ' days' + (b.status === 'active' ? ' so far' : '') + '</title></rect>');
+      });
+    });
+    body.innerHTML = '<div class="tl-wrap"><svg class="tl" viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="Timeline of battles by area">' + out.join('') + '</svg></div>' +
+      '<div class="chart__legend"><span><i style="background:rgba(17,19,21,.42)"></i>Lighter</span><span><i style="background:rgba(17,19,21,.98)"></i>Heavier</span><span><i style="background:transparent;border:2px solid #B08D3C"></i>Still in it</span><span>Click a bar for details</span></div>';
+  }
+
+  // New battle
+  function openBattleEditor(opts) {
+    opts = opts || {};
+    var editing = opts.id ? state.battles.find(function (b) { return b.id === opts.id; }) : null;
+    var draft = { title: editing ? editing.title : '', area: editing ? editing.area : null, weight: editing ? editing.weight : 3, step: editing ? editing.step : '' };
+    openSheet(function (body) {
+      body.innerHTML = sheetHead(editing ? 'Edit battle' : 'New battle', editing ? '' : 'What’s weighing on you? It starts today.') +
+        '<form class="add-form" novalidate autocomplete="off">' +
+        '<label class="field"><span class="field__label">The battle</span><input class="input" name="title" maxlength="120" enterkeyhint="done" placeholder="e.g. Lost my biggest client" value="' + esc(draft.title) + '"></label>' +
+        '<div class="field"><span class="field__label">Area</span><div class="suggest" id="area-chips">' + areaOptions().map(function (a) {
+          return '<button type="button" class="area-chip" data-area="' + esc(a) + '" aria-pressed="' + (draft.area === a) + '">' + esc(a) + '</button>';
+        }).join('') + '</div></div>' +
+        '<div class="field"><span class="field__label">How heavy? <em>1 annoying · 5 crushing</em></span><div class="weights" id="weights">' + [1, 2, 3, 4, 5].map(function (n) {
+          return '<button type="button" class="weight" data-weight="' + n + '" aria-pressed="' + (draft.weight === n) + '">' + n + '</button>';
+        }).join('') + '</div></div>' +
+        '<label class="field"><span class="field__label">First small step <em>Optional</em></span><input class="input" name="step" maxlength="140" placeholder="e.g. Call two old clients" value="' + esc(draft.step) + '"></label>' +
+        '<div id="been-box"></div>' +
+        '<button class="btn btn--primary btn--lg btn--block" type="submit">' + (editing ? 'Save' : 'Start tracking it') + '</button>' +
+        (editing ? '<button class="btn btn--danger-soft btn--block" type="button" data-sheet="delete">Delete battle</button>' : '') +
+        '</form>';
+      var form = $('form', body);
+      var title = fld(form, 'title');
+      function refresh() {
+        $$('.area-chip', body).forEach(function (c) { c.setAttribute('aria-pressed', String(c.dataset.area === draft.area)); });
+        $$('.weight', body).forEach(function (c) { c.setAttribute('aria-pressed', String(+c.dataset.weight === draft.weight)); });
+        $('#been-box', body).innerHTML = draft.area || title.value.trim() ? beenHereHtml(BT.beenHere(state.battles, draft.area, title.value, editing && editing.id)) : '';
+      }
+      refresh();
+      title.addEventListener('input', function () { title.classList.remove('is-invalid'); refresh(); });
+      body.onclick = function (e) {
+        var a = e.target.closest('[data-area]');
+        if (a) { draft.area = a.dataset.area; refresh(); return; }
+        var w = e.target.closest('[data-weight]');
+        if (w) { draft.weight = +w.dataset.weight; refresh(); return; }
+        var sh = e.target.closest('[data-sheet]');
+        if (sh && sh.dataset.sheet === 'delete') {
+          confirmDialog({ title: 'Delete this battle?', text: '“' + editing.title + '” will be removed from your history.', okLabel: 'Delete', danger: true }).then(function (ok) {
+            if (!ok) return;
+            commit(function (st) { st.battles = st.battles.filter(function (b) { return b.id !== editing.id; }); });
+            closeSheet();
+            toast('Battle deleted');
+          });
+        }
+      };
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var t = title.value.trim();
+        if (!t) { title.classList.add('is-invalid'); title.focus(); return; }
+        var area = draft.area || 'Other';
+        var step = fld(form, 'step').value.trim();
+        if (editing) {
+          commit(function () { editing.title = t; editing.area = area; editing.weight = draft.weight; editing.step = step; });
+          closeSheet();
+          toast('Battle saved');
+          return;
+        }
+        var b = { id: uid(), title: t, area: area, weight: draft.weight, step: step, startedAt: new Date().toISOString(), status: 'active', endedAt: null, helped: [], note: '', updates: [] };
+        commit(function (st) { st.battles.push(b); });
+        closeSheet();
+        toast('Battle logged. Day 1.', { sub: 'Keep making small decisions. Mark it over when it’s done.' });
+      });
+    }, { className: 'sheet--battle', label: editing ? 'Edit battle' : 'New battle', focus: function () { if (!editing) $('input[name="title"]', sheetBody).focus({ preventScroll: true }); } });
+  }
+
+  function openBattleUpdate(id) {
+    var b = state.battles.find(function (x) { return x.id === id; });
+    if (!b) return;
+    var w = BT.weightNow(b);
+    openSheet(function (body) {
+      body.innerHTML = sheetHead('Update', esc(b.title) + ' · Day ' + BT.days(b)) +
+        '<form class="add-form" novalidate autocomplete="off">' +
+        '<div class="field"><span class="field__label">How heavy is it now?</span><div class="weights">' + [1, 2, 3, 4, 5].map(function (n) {
+          return '<button type="button" class="weight" data-weight="' + n + '" aria-pressed="' + (w === n) + '">' + n + '</button>';
+        }).join('') + '</div></div>' +
+        '<label class="field"><span class="field__label">Note <em>Optional</em></span><input class="input" name="note" maxlength="200" placeholder="e.g. Signed one new client"></label>' +
+        '<button class="btn btn--primary btn--lg btn--block" type="submit">Save update</button></form>';
+      body.onclick = function (e) {
+        var x = e.target.closest('[data-weight]');
+        if (!x) return;
+        w = +x.dataset.weight;
+        $$('.weight', body).forEach(function (c) { c.setAttribute('aria-pressed', String(+c.dataset.weight === w)); });
+      };
+      $('form', body).addEventListener('submit', function (e) {
+        e.preventDefault();
+        var note = fld(e.target, 'note').value.trim();
+        commit(function () { b.updates.push({ at: new Date().toISOString(), weight: w, note: note }); });
+        closeSheet();
+        toast(w < b.weight ? 'Lighter than when it started.' : 'Updated');
+      });
+    }, { className: 'sheet--battle', label: 'Update battle' });
+  }
+
+  function openBattleClose(id) {
+    var b = state.battles.find(function (x) { return x.id === id; });
+    if (!b) return;
+    var draft = { status: 'won', helped: [] };
+    openSheet(function (body) {
+      body.innerHTML = sheetHead('It’s over', esc(b.title) + ' · ' + BT.days(b) + ' ' + plural(BT.days(b), 'day')) +
+        '<form class="add-form" novalidate autocomplete="off">' +
+        '<div class="field"><span class="field__label">How did it end?</span><div class="suggest">' + Object.keys(BT.STATUSES).map(function (k) {
+          return '<button type="button" class="area-chip" data-status="' + k + '" aria-pressed="' + (draft.status === k) + '">' + esc(BT.STATUSES[k].long) + '</button>';
+        }).join('') + '</div></div>' +
+        '<div class="field"><span class="field__label">What helped? <em>Pick any</em></span><div class="suggest">' + BT.HELPED.map(function (h) {
+          return '<button type="button" class="area-chip" data-helped="' + h[0] + '" aria-pressed="false">' + esc(h[1]) + '</button>';
+        }).join('') + '</div></div>' +
+        '<label class="field"><span class="field__label">One line for future you <em>Shown the next time something like this starts</em></span><input class="input" name="note" maxlength="160" placeholder="e.g. It passed. Make the calls, don’t wait."></label>' +
+        '<button class="btn btn--primary btn--lg btn--block" type="submit">Mark it over</button></form>';
+      body.onclick = function (e) {
+        var s1 = e.target.closest('[data-status]');
+        if (s1) {
+          draft.status = s1.dataset.status;
+          $$('[data-status]', body).forEach(function (c) { c.setAttribute('aria-pressed', String(c.dataset.status === draft.status)); });
+          return;
+        }
+        var h = e.target.closest('[data-helped]');
+        if (h) {
+          var k = h.dataset.helped;
+          var i = draft.helped.indexOf(k);
+          if (i === -1) draft.helped.push(k); else draft.helped.splice(i, 1);
+          h.setAttribute('aria-pressed', String(i === -1));
+        }
+      };
+      $('form', body).addEventListener('submit', function (e) {
+        e.preventDefault();
+        var note = fld(e.target, 'note').value.trim();
+        commit(function () {
+          b.status = draft.status;
+          b.endedAt = new Date().toISOString();
+          b.helped = draft.helped.slice();
+          b.note = note;
+        });
+        closeSheet();
+        var n = BT.closed(state.battles).length;
+        toast('Battle ' + n + ' over. ' + BT.days(b) + ' ' + plural(BT.days(b), 'day') + '. Logged.', { sub: 'One more reminder that they end.' });
+      });
+    }, { className: 'sheet--battle', label: 'Close battle' });
+  }
+
+  function openBattleDetail(id) {
+    var b = state.battles.find(function (x) { return x.id === id; });
+    if (!b) return;
+    openSheet(function (body) {
+      var d = BT.days(b);
+      var typ = BT.typicalDays(state.battles.filter(function (x) { return x.id !== b.id; }), b.area);
+      var points = [{ at: b.startedAt, weight: b.weight }].concat(b.updates.filter(function (u) { return u.weight; }));
+      var spark = '';
+      if (points.length > 1) {
+        var W = 300, Hh = 60;
+        var t0 = Date.parse(points[0].at), t1 = Math.max(t0 + 1, Date.parse(points[points.length - 1].at));
+        spark = '<svg class="wspark" viewBox="0 0 ' + W + ' ' + Hh + '"><polyline fill="none" stroke="#111315" stroke-width="2.5" points="' + points.map(function (p) {
+          return (8 + (W - 16) * (Date.parse(p.at) - t0) / (t1 - t0)).toFixed(1) + ',' + (8 + (Hh - 16) * (5 - p.weight) / 4).toFixed(1);
+        }).join(' ') + '"/></svg>';
+      }
+      body.innerHTML = sheetHead(esc(b.title), esc(b.area) + ' · ' + (b.status === 'active' ? 'Day ' + d + ', started ' + esc(fmtDate(b.startedAt)) : esc(BT.STATUSES[b.status].long) + ' · ' + d + ' days, ' + esc(fmtDate(b.startedAt)) + ' → ' + esc(fmtDate(b.endedAt))), { eyebrow: b.status === 'active' ? 'In the fight' : 'Behind you' }) +
+        '<div class="stat-pair"><div class="stat"><div class="stat__num">' + d + '</div><div class="stat__label">' + (b.status === 'active' ? 'Days so far' : 'Days it lasted') + (typ ? ' · usual ~' + typ.days : '') + '</div></div>' +
+        '<div class="stat"><div class="stat__num">' + BT.decisionsSince(b, state.decisions) + '</div><div class="stat__label">Decisions made meanwhile</div></div></div>' +
+        '<div class="sheet__section"><p class="sheet__section-title"><span>Weight</span><span>' + weightSquares(BT.weightNow(b)) + '</span></p>' + (spark || '<p class="mini-empty">Updates show here as a line, so you can see it getting lighter.</p>') + '</div>' +
+        (b.step ? '<div class="sheet__section"><p class="sheet__section-title"><span>First small step</span></p><p>' + esc(b.step) + '</p></div>' : '') +
+        (b.helped.length || b.note ? '<div class="sheet__section"><p class="sheet__section-title"><span>What got you through</span></p>' + (b.helped.length ? '<p>' + b.helped.map(helpedLabel).map(esc).join(' · ') + '</p>' : '') + (b.note ? '<p class="been__note">“' + esc(b.note) + '”</p>' : '') + '</div>' : '') +
+        (b.updates.length ? '<div class="sheet__section"><p class="sheet__section-title"><span>Updates</span></p><div class="mini-list">' + b.updates.slice().reverse().map(function (u) {
+          return '<div class="mini"><span class="mini__text">' + (u.note ? esc(u.note) : 'Weight ' + u.weight + '/5') + '</span><span class="mini__date">' + esc(fmtDate(u.at)) + '</span></div>';
+        }).join('') + '</div></div>' : '') +
+        (b.status === 'active' ? beenHereHtml(BT.beenHere(state.battles, b.area, b.title, b.id)) : '') +
+        '<div class="sheet__actions">' +
+        (b.status === 'active' ? '<button type="button" class="btn btn--primary btn--lg btn--block" data-sheet="close-battle">It’s over</button><button type="button" class="btn btn--soft btn--block" data-sheet="update">Update</button>' : '<button type="button" class="btn btn--soft btn--block" data-sheet="reopen">Reopen</button>') +
+        '<button type="button" class="btn btn--ghost btn--block" data-sheet="edit">Edit or delete</button></div>';
+      body.onclick = function (e) {
+        var a = e.target.closest('[data-sheet]');
+        if (!a) return;
+        if (a.dataset.sheet === 'close-battle') openBattleClose(b.id);
+        else if (a.dataset.sheet === 'update') openBattleUpdate(b.id);
+        else if (a.dataset.sheet === 'edit') openBattleEditor({ id: b.id });
+        else if (a.dataset.sheet === 'reopen') {
+          commit(function () { b.status = 'active'; b.endedAt = null; });
+          closeSheet();
+          toast('Reopened');
+        }
+      };
+    }, { className: 'sheet--battle', label: 'Battle details' });
+  }
+
+  function setView(view, push) {
+    ui.view = view === 'battles' ? 'battles' : 'decisions';
+    applyView();
+    if (push && location.hash !== '#' + ui.view) {
+      try { history.replaceState(null, '', '#' + ui.view); } catch (e) { location.hash = ui.view; }
+    }
+    window.scrollTo(0, 0);
+  }
+
   // ── Global events ──────────────────────────────────────────────────────
   document.addEventListener('click', function (e) {
     var el = e.target.closest('[data-action]');
@@ -2136,6 +2574,22 @@
       case 'edit-decision': openAdd({ editId: el.dataset.id }); break;
       case 'delete-decision': confirmDelete(el.dataset.id); break;
       case 'log-category': openAdd({ categoryName: el.dataset.name }); break;
+      case 'battle-new': openBattleEditor(); break;
+      case 'battle-open': openBattleDetail(el.dataset.id); break;
+      case 'battle-update': openBattleUpdate(el.dataset.id); break;
+      case 'battle-close': openBattleClose(el.dataset.id); break;
+      case 'won-filter':
+        ui.wonFilter = el.dataset.area || null;
+        render();
+        break;
+      case 'checkin-calm':
+        commit(function (s) { s.checkins.push({ at: new Date().toISOString() }); });
+        toast('Good. Next check-in in ' + (state.settings.checkinDays === 30 ? 'a month' : 'two weeks') + '.');
+        break;
+      case 'private-toggle':
+        commit(function (s) { s.settings.privateMode = !s.settings.privateMode; });
+        toast(state.settings.privateMode ? 'Private mode on. Battles are hidden.' : 'Private mode off');
+        break;
       case 'proof-toggle':
         ui.proofAll = !ui.proofAll;
         render();
@@ -2197,6 +2651,12 @@
     if (sheetEl.open || confirmEl.open) return;
     var tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+    if (e.key === 'b' || e.key === 'B') {
+      e.preventDefault();
+      if (ui.view !== 'battles') setView('battles', true);
+      if (!state.settings.privateMode) openBattleEditor();
+      return;
+    }
     if (e.key === 'n' || e.key === 'N' || e.key === '+') {
       e.preventDefault();
       openAdd();
@@ -2238,6 +2698,13 @@
   } else {
     thumbVisible = true;
   }
+
+  window.addEventListener('hashchange', function () {
+    var h = location.hash.replace('#', '');
+    if (h === 'battles' || h === 'decisions') setView(h, false);
+  });
+  ui.view = location.hash === '#battles' ? 'battles' : 'decisions';
+  applyView();
 
   initReorder();
   render({ intro: true });

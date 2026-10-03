@@ -15,6 +15,7 @@ A personal daily accountability tool. You log small acts of discipline ("decisio
 | **Pulse** | One line at the top, only when useful: a risk day ("Wednesdays are when Gym goes quiet"), your #1 priority going silent, a quieter-than-usual day, or your strongest window. After a quiet evening, an optional one-tap "What pulled you away?" (Phone · Tired · Stress · Busy · Just didn't log). Nothing shows until 14 days and 50 decisions of data. |
 | **Proof** | Every "what happened" result in one place, with totals the app reads from your words: money ("$828 saved"), time ("24 h back") or a count. |
 | **Your patterns** | Weekday × hour heatmap (last 8 weeks), strongest hours, quietest window, longest silences, and what pulls you away most. |
+| **Battles tab** | Track hard things you're going through. Add one in 10 seconds (title, area, how heavy); it starts that day and ends when you mark it over (Won / Passed / Accepted, what helped, one note for future you). Shows "You've been here before" with past battles in the same area, your current battles with "Day 10 · usually ends in ~17 days", a timeline of everything you've been through, problems that keep coming back, what works for you, and a clean history. Private mode hides it all; it never appears on the Instagram card. Check-in every 2 weeks. Press **B** to add one. |
 | **Balance** | One bar per category. Length = all-time decisions. Color = health over the last 7 days. Tap a bar for a detail popup: totals, a 7-day chart, target vs. actual share, the status in plain words, and recent decisions. |
 | **Priorities** | Each category can have a one-line *why*, shown only when it falls behind. Drag to reorder, or use the arrow keys on the handle. Reordering instantly changes targets and recomputes health. Edit a category to rename, recolor or delete it; **New category** creates one at any position. |
 | **+ button** | Pick a category, type "what I did", optionally "what happened as a result", then save. You get an Undo toast. |
@@ -79,6 +80,7 @@ Exports wrap the same data as `{ "app": "1000-decisions", "version": 1, "exporte
 index.html              the single page
 css/app.css             all styles (light, warm, high-contrast)
 js/health.js            health algorithm (pure, unit-tested)
+js/battles.js           battles: typical length, repeats, what works, check-ins (pure, unit-tested)
 js/insights.js          proof totals and rhythm/quiet-period patterns (pure, unit-tested)
 js/card.js              Instagram card renderer (Canvas 2D, no dependencies)
 js/app.js               state, rendering, interactions

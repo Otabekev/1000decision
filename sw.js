@@ -4,13 +4,14 @@
  * Strategy: serve from cache, refresh the cache in the background.
  * Bump VERSION when shipping changes that must replace old caches.
  */
-var VERSION = 'td-v3';
+var VERSION = 'td-v4';
 var ASSETS = [
   './',
   './index.html',
   './css/app.css',
   './js/health.js',
   './js/insights.js',
+  './js/battles.js',
   './js/card.js',
   './js/app.js',
   './css/fonts.css',

@@ -318,6 +318,43 @@ test('patterns: learning state before 14 days; one-tap answer is stored', async 
   const s = await stored(page);
   assert.equal(s.reasons.length, 1);
   assert.equal(s.reasons[0].answer, 'phone');
-  assert.equal(await page.locator('.pulse__ask').count(), 0);
+  assert.equal(await page.locator('#pulse .pulse__ask:not(.checkin-row)').count(), 0);
+  await ctx.close();
+});
+
+test('battles: add, been-here-before, close into history, private mode', async () => {
+  const data = sample();
+  const ago = (d) => new Date(Date.now() - d * 86400000).toISOString();
+  data.battles = [{ id: 'old', title: 'Client did not pay', area: 'Money', weight: 4, step: '', startedAt: ago(60), status: 'won', endedAt: ago(40), helped: ['action'], note: 'Make the calls', updates: [] }];
+  const { ctx, page, errors } = await open(data);
+  await page.click('.tab[data-view="battles"]');
+  await page.waitForSelector('#view-battles:not([hidden])');
+  await page.click('.war [data-action="battle-new"]');
+  await page.fill('input[name="title"]', 'Lost my biggest client');
+  await page.click('.sheet .area-chip[data-area="Money"]');
+  assert.match(await page.textContent('.been'), /Make the calls/);
+  await page.click('.sheet .add-form button[type="submit"]');
+  await page.waitForFunction(() => !document.getElementById('sheet').open);
+  assert.equal(await page.locator('.fight').count(), 1);
+  assert.equal(await page.textContent('#tab-battles-count'), '1');
+
+  await page.click('.fight [data-action="battle-close"]');
+  await page.click('.sheet [data-status="passed"]');
+  await page.click('.sheet [data-helped="talked"]');
+  await page.fill('input[name="note"]', 'It passed');
+  await page.click('.sheet .add-form button[type="submit"]');
+  await page.waitForFunction(() => !document.getElementById('sheet').open);
+  const s = await stored(page);
+  const b = s.battles.find((x) => x.title === 'Lost my biggest client');
+  assert.equal(b.status, 'passed');
+  assert.deepEqual(b.helped, ['talked']);
+  assert.ok(b.endedAt);
+  assert.equal(await page.locator('.fight').count(), 0);
+  assert.equal(await page.locator('.won').count(), 2);
+
+  await page.click('#private-btn');
+  assert.equal(await page.isVisible('#battles-body'), false);
+  assert.equal(await page.isVisible('#private-note'), true);
+  assert.deepEqual(errors, []);
   await ctx.close();
 });

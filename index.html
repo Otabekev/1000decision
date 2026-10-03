@@ -27,6 +27,10 @@
         <span class="brand__mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i></span>
         <span class="brand__name">1000 Decisions</span>
       </a>
+      <nav class="tabs" aria-label="Views">
+        <a class="tab" href="#decisions" data-view="decisions" aria-current="page">Decisions</a>
+        <a class="tab" href="#battles" data-view="battles">Battles<span class="tab__count" id="tab-battles-count" hidden></span></a>
+      </nav>
       <div class="topbar__stats" aria-hidden="true">
         <span class="topbar__day" id="topbar-day">Day 1</span>
         <span class="topbar__total" id="topbar-total">0/1000</span>
@@ -45,6 +49,7 @@
 
   <main class="page" id="main">
     <span id="top"></span>
+    <div class="view" id="view-decisions">
 
     <!-- Pulse: one quiet-period insight + the optional one-tap question -->
     <section class="pulse" id="pulse" aria-live="polite" hidden></section>
@@ -229,6 +234,83 @@
       </div>
     </div>
 
+    </div>
+
+    <!-- Battles -->
+    <div class="view" id="view-battles" hidden>
+      <section class="war" id="war-hero" aria-labelledby="war-title">
+        <div class="war__top">
+          <div>
+            <p class="eyebrow">Battles</p>
+            <h1 class="war__title" id="war-title">Every battle ends.</h1>
+          </div>
+          <div class="war__actions">
+            <button class="btn btn--ghost-light" type="button" data-action="private-toggle" id="private-btn">Private mode</button>
+            <button class="btn btn--brass" type="button" data-action="battle-new">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              New battle <kbd>B</kbd>
+            </button>
+          </div>
+        </div>
+        <dl class="war__stats" id="war-stats"></dl>
+        <p class="war__line" id="war-line"></p>
+      </section>
+
+      <div id="battles-body">
+        <div class="checkin" id="checkin" hidden></div>
+
+        <section class="panel" id="battles-active" aria-labelledby="active-title">
+          <div class="panel__head">
+            <div>
+              <p class="eyebrow">In the fight</p>
+              <h2 class="panel__title" id="active-title">Current battles</h2>
+            </div>
+          </div>
+          <div id="active-list"></div>
+        </section>
+
+        <section class="panel" id="battles-timeline" aria-labelledby="timeline-title">
+          <div class="panel__head">
+            <div>
+              <p class="eyebrow">Look back</p>
+              <h2 class="panel__title" id="timeline-title">What you’ve been through</h2>
+            </div>
+          </div>
+          <div id="timeline-body"></div>
+        </section>
+
+        <div class="grid-2">
+          <section class="panel" aria-labelledby="repeat-title">
+            <div class="panel__head"><div><p class="eyebrow">Patterns</p><h2 class="panel__title" id="repeat-title">Problems that keep coming back</h2></div></div>
+            <div id="repeat-body"></div>
+          </section>
+          <section class="panel" aria-labelledby="works-title">
+            <div class="panel__head"><div><p class="eyebrow">Your playbook</p><h2 class="panel__title" id="works-title">What works for you</h2></div></div>
+            <div id="works-body"></div>
+          </section>
+        </div>
+
+        <section class="panel" aria-labelledby="won-title">
+          <div class="panel__head">
+            <div>
+              <p class="eyebrow">History</p>
+              <h2 class="panel__title" id="won-title">Battles behind you</h2>
+            </div>
+            <span class="count-badge" id="won-count">0</span>
+          </div>
+          <div class="chips" id="won-filters" role="group" aria-label="Filter by area"></div>
+          <div id="won-list"></div>
+        </section>
+      </div>
+
+      <section class="panel private-note" id="private-note" hidden>
+        <p class="eyebrow">Private mode is on</p>
+        <h2 class="panel__title">Battles are hidden</h2>
+        <p class="panel__lede">Safe for screen recording. Nothing from Battles ever appears on your Instagram card.</p>
+        <button class="btn btn--primary" type="button" data-action="private-toggle">Show battles</button>
+      </section>
+    </div>
+
     <p class="page__foot">Runs on your computer. No account, no cloud, no subscription. Your data never leaves this device.</p>
   </main>
 
@@ -256,6 +338,7 @@
 
   <script src="js/health.js"></script>
   <script src="js/insights.js"></script>
+  <script src="js/battles.js"></script>
   <script src="js/card.js"></script>
   <script src="js/app.js"></script>
 </body>
