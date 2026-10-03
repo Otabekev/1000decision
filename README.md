@@ -16,6 +16,7 @@ A personal daily accountability tool. You log small acts of discipline ("decisio
 | **Proof** | Every "what happened" result in one place, with totals the app reads from your words: money ("$828 saved"), time ("24 h back") or a count. |
 | **Your patterns** | Weekday × hour heatmap (last 8 weeks), strongest hours, quietest window, longest silences, and what pulls you away most. |
 | **Battles tab** | Track hard things you're going through. Add one in 10 seconds (title, area, how heavy); it starts that day and ends when you mark it over (Won / Passed / Accepted, what helped, one note for future you). Shows "You've been here before" with past battles in the same area, your current battles with "Day 10 · usually ends in ~17 days", a timeline of everything you've been through, problems that keep coming back, what works for you, and a clean history. Private mode hides it all; it never appears on the Instagram card. Check-in every 2 weeks. Press **B** to add one. |
+| **Record tab** | **Big bets**: log life-changing decisions (why, what you expect, the "at 80, would I regret not doing it?" test, how sure you are); the app brings each one back at 3, 6 and 12 months for a right / mixed / wrong verdict and shows how good your judgment really is. **Firsts**: moments that only happen once. **Voice notes**: press **V**, talk for up to 3 minutes; audio is stored only on this computer (IndexedDB; not included in JSON backups, download each note to keep a copy). **Lessons**: your own principles, saved with one tap from closed battles and reviewed bets, pin up to 10. Private mode hides Record too. |
 | **Balance** | One bar per category. Length = all-time decisions. Color = health over the last 7 days. Tap a bar for a detail popup: totals, a 7-day chart, target vs. actual share, the status in plain words, and recent decisions. |
 | **Priorities** | Each category can have a one-line *why*, shown only when it falls behind. Drag to reorder, or use the arrow keys on the handle. Reordering instantly changes targets and recomputes health. Edit a category to rename, recolor or delete it; **New category** creates one at any position. |
 | **+ button** | Pick a category, type "what I did", optionally "what happened as a result", then save. You get an Undo toast. |
@@ -81,6 +82,8 @@ index.html              the single page
 css/app.css             all styles (light, warm, high-contrast)
 js/health.js            health algorithm (pure, unit-tested)
 js/battles.js           battles: typical length, repeats, what works, check-ins (pure, unit-tested)
+js/record.js            big bets reviews, judgment, firsts, lessons (pure, unit-tested)
+js/media.js             private audio storage for voice notes (IndexedDB)
 js/insights.js          proof totals and rhythm/quiet-period patterns (pure, unit-tested)
 js/card.js              Instagram card renderer (Canvas 2D, no dependencies)
 js/app.js               state, rendering, interactions

@@ -30,6 +30,7 @@
       <nav class="tabs" aria-label="Views">
         <a class="tab" href="#decisions" data-view="decisions" aria-current="page">Decisions</a>
         <a class="tab" href="#battles" data-view="battles">Battles<span class="tab__count" id="tab-battles-count" hidden></span></a>
+        <a class="tab" href="#record" data-view="record">Record<span class="tab__count" id="tab-record-count" hidden></span></a>
       </nav>
       <div class="topbar__stats" aria-hidden="true">
         <span class="topbar__day" id="topbar-day">Day 1</span>
@@ -311,6 +312,73 @@
       </section>
     </div>
 
+    <!-- Record -->
+    <div class="view" id="view-record" hidden>
+      <section class="war" aria-labelledby="record-title">
+        <div class="war__top">
+          <div>
+            <p class="eyebrow">The record</p>
+            <h1 class="war__title" id="record-title">Write it down now.</h1>
+          </div>
+          <div class="war__actions">
+            <button class="btn btn--ghost-light" type="button" data-action="voice-new">● Voice note <kbd>V</kbd></button>
+            <button class="btn btn--brass" type="button" data-action="bet-new">+ Big bet</button>
+          </div>
+        </div>
+        <dl class="war__stats" id="record-stats"></dl>
+        <p class="war__line">Future you will want proof of who you were while you built this.</p>
+      </section>
+
+      <div id="record-body" class="record-body">
+        <div id="reviews-due"></div>
+
+        <section class="panel" aria-labelledby="bets-title">
+          <div class="panel__head">
+            <div><p class="eyebrow">Big bets</p><h2 class="panel__title" id="bets-title">Decisions that change the direction</h2></div>
+            <button class="btn btn--soft" type="button" data-action="bet-new">+ Big bet</button>
+          </div>
+          <p class="panel__lede">Quit, move, hire, invest, end something. Write down why and what you expect. The app brings it back at 3, 6 and 12 months so you see your real judgment, not the version you remember.</p>
+          <div id="judgment"></div>
+          <div id="bets-list"></div>
+        </section>
+
+        <div class="grid-2">
+          <section class="panel" aria-labelledby="firsts-title">
+            <div class="panel__head">
+              <div><p class="eyebrow">Firsts</p><h2 class="panel__title" id="firsts-title">Moments that only happen once</h2></div>
+              <button class="btn btn--soft" type="button" data-action="first-new">+ First</button>
+            </div>
+            <div id="firsts-list"></div>
+          </section>
+
+          <section class="panel" aria-labelledby="voice-title">
+            <div class="panel__head">
+              <div><p class="eyebrow">Voice notes</p><h2 class="panel__title" id="voice-title">Your voice, right now</h2></div>
+              <button class="btn btn--soft" type="button" data-action="voice-new">● Record</button>
+            </div>
+            <p class="panel__lede">60 seconds on a great day, a terrible day or after a big call. Stored only on this computer.</p>
+            <div id="voice-list"></div>
+          </section>
+        </div>
+
+        <section class="panel" aria-labelledby="lessons-title">
+          <div class="panel__head">
+            <div><p class="eyebrow">Lessons</p><h2 class="panel__title" id="lessons-title">Your principles, from your own life</h2></div>
+            <button class="btn btn--soft" type="button" data-action="lesson-new">+ Lesson</button>
+          </div>
+          <p class="panel__lede">Pain + reflection = progress. Save lessons from closed battles and reviewed bets with one tap, or write your own. Pin up to 10.</p>
+          <div id="lessons-list"></div>
+        </section>
+      </div>
+
+      <section class="panel private-note" id="record-private" hidden>
+        <p class="eyebrow">Private mode is on</p>
+        <h2 class="panel__title">The record is hidden</h2>
+        <p class="panel__lede">Safe for screen recording. Turn it off from the Battles tab or here.</p>
+        <button class="btn btn--primary" type="button" data-action="private-toggle">Show the record</button>
+      </section>
+    </div>
+
     <p class="page__foot">Runs on your computer. No account, no cloud, no subscription. Your data never leaves this device.</p>
   </main>
 
@@ -339,6 +407,8 @@
   <script src="js/health.js"></script>
   <script src="js/insights.js"></script>
   <script src="js/battles.js"></script>
+  <script src="js/record.js"></script>
+  <script src="js/media.js"></script>
   <script src="js/card.js"></script>
   <script src="js/app.js"></script>
 </body>

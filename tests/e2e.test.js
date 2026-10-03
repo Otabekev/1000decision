@@ -30,7 +30,7 @@ test.before(async () => {
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   base = 'http://127.0.0.1:' + server.address().port + '/';
-  browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
+  browser = await chromium.launch(Object.assign({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] }, process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}));
 });
 
 test.after(async () => {
@@ -356,5 +356,77 @@ test('battles: add, been-here-before, close into history, private mode', async (
   assert.equal(await page.isVisible('#battles-body'), false);
   assert.equal(await page.isVisible('#private-note'), true);
   assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('record: big bet review comes due, lesson saved, first logged, pin limit', async () => {
+  const data = sample();
+  data.bets = [{ id: 'bet1', title: 'Quit my job', area: 'Work', why: 'Freedom', expect: 'Replace salary in 6 months', regret: 'Yes', confidence: 4, madeAt: new Date(Date.now() - 100 * 86400000).toISOString(), reviews: [] }];
+  const { ctx, page, errors } = await open(data);
+  assert.match(await page.textContent('#pulse'), /3-month review/);
+  await page.click('.tab[data-view="record"]');
+  assert.equal(await page.textContent('#tab-record-count'), '1');
+  await page.click('#reviews-due [data-action="bet-review"]');
+  await page.click('.sheet [data-verdict="mixed"]');
+  await page.fill('.sheet input[name="note"]', 'Sales take twice as long');
+  await page.click('.sheet .add-form button[type="submit"]');
+  await page.waitForFunction(() => !document.getElementById('sheet').open);
+  let s = await stored(page);
+  assert.equal(s.bets[0].reviews[0].verdict, 'mixed');
+  assert.equal(s.lessons[0].text, 'Sales take twice as long');
+  assert.equal(s.lessons[0].source.type, 'bet');
+  assert.match(await page.textContent('#judgment'), /0%/);
+
+  await page.click('#view-record [data-action="first-new"]');
+  await page.fill('.sheet input[name="title"]', 'First $1,000 month');
+  await page.click('.sheet .add-form button[type="submit"]');
+  await page.waitForFunction(() => !document.getElementById('sheet').open);
+  assert.match(await page.textContent('#firsts-list'), /First \$1,000 month/);
+
+  await page.click('.lesson__pin');
+  s = await stored(page);
+  assert.equal(s.lessons[0].pinned, true);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('record: voice note records, saves to IndexedDB and plays back', async () => {
+  const { ctx, page, errors } = await open(sample());
+  await page.click('.tab[data-view="record"]');
+  await page.click('.war [data-action="voice-new"]');
+  await page.click('#rec-btn');
+  await page.waitForTimeout(1300);
+  await page.click('#rec-btn');
+  await page.waitForSelector('#rec-form:not([hidden])');
+  await page.fill('.sheet input[name="title"]', 'Night before quitting');
+  await page.click('#rec-form button[type="submit"]');
+  await page.waitForFunction(() => !document.getElementById('sheet').open);
+  const s = await stored(page);
+  assert.equal(s.voice.length, 1);
+  assert.ok(s.voice[0].duration >= 1);
+  const size = await page.evaluate((id) => window.TDMedia.get(id).then((b) => b && b.size), s.voice[0].id);
+  assert.ok(size > 0);
+  assert.match(await page.textContent('#voice-list'), /Night before quitting/);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('closing a battle can save its note as a lesson; private mode hides Record', async () => {
+  const data = sample();
+  data.battles = [{ id: 'b1', title: 'Back pain', area: 'Health', weight: 3, step: '', startedAt: new Date(Date.now() - 5 * 86400000).toISOString(), status: 'active', endedAt: null, helped: [], note: '', updates: [] }];
+  const { ctx, page } = await open(data);
+  await page.click('.tab[data-view="battles"]');
+  await page.click('.fight [data-action="battle-close"]');
+  await page.fill('.sheet input[name="note"]', 'Stretch every morning');
+  await page.click('.sheet .add-form button[type="submit"]');
+  await page.waitForFunction(() => !document.getElementById('sheet').open);
+  const s = await stored(page);
+  assert.equal(s.lessons[0].text, 'Stretch every morning');
+  assert.equal(s.lessons[0].area, 'Health');
+  await page.click('#private-btn');
+  await page.click('.tab[data-view="record"]');
+  await page.waitForSelector('#view-record:not([hidden])');
+  assert.equal(await page.isVisible('#record-body'), false);
+  assert.equal(await page.isVisible('#record-private'), true);
   await ctx.close();
 });

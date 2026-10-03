@@ -13,6 +13,9 @@
   var H = window.TDHealth;
   var I = window.TDInsights;
   var BT = window.TDBattles;
+  var RC = window.TDRecord;
+  var MEDIA = window.TDMedia;
+  var VOICE_TAGS = [['good', 'Good day'], ['hard', 'Hard day'], ['big', 'Big moment'], ['other', 'Other']];
   var Card = window.TDCard;
 
   var STORAGE_KEY = 'thousand-decisions:v1';
@@ -126,7 +129,11 @@
       reasons: [],
       prompt: { lastAsked: null, ignored: 0, pausedUntil: null },
       battles: [],
-      checkins: []
+      checkins: [],
+      bets: [],
+      firsts: [],
+      lessons: [],
+      voice: []
     };
   }
 
@@ -178,6 +185,40 @@
             return { at: new Date(Date.parse(u.at)).toISOString(), weight: u.weight ? clamp(parseInt(u.weight, 10) || 3, 1, 5) : null, note: typeof u.note === 'string' ? u.note.trim().slice(0, 200) : '' };
           }) : []
         });
+      });
+    }
+    function str(x, n) { return typeof x === 'string' ? x.trim().slice(0, n) : ''; }
+    if (Array.isArray(src.bets)) {
+      src.bets.forEach(function (b) {
+        if (!b || !str(b.title, 140) || !isFinite(Date.parse(b.madeAt))) return;
+        out.bets.push({
+          id: str(b.id, 80) || uid(), title: str(b.title, 140), area: str(b.area, MAX_NAME) || 'Other',
+          why: str(b.why, 400), expect: str(b.expect, 400), regret: str(b.regret, 300),
+          confidence: clamp(parseInt(b.confidence, 10) || 3, 1, 5),
+          madeAt: new Date(Date.parse(b.madeAt)).toISOString(),
+          reviews: Array.isArray(b.reviews) ? b.reviews.filter(function (r) { return r && [3, 6, 12].indexOf(+r.checkpoint) !== -1 && RC.VERDICTS[r.verdict]; }).map(function (r) {
+            return { at: isFinite(Date.parse(r.at)) ? new Date(Date.parse(r.at)).toISOString() : new Date().toISOString(), checkpoint: +r.checkpoint, verdict: r.verdict, note: str(r.note, 400) };
+          }) : []
+        });
+      });
+    }
+    if (Array.isArray(src.firsts)) {
+      src.firsts.forEach(function (f) {
+        if (!f || !str(f.title, 140) || !parseYmd(f.date)) return;
+        out.firsts.push({ id: str(f.id, 80) || uid(), title: str(f.title, 140), area: str(f.area, MAX_NAME), date: f.date, note: str(f.note, 300) });
+      });
+    }
+    if (Array.isArray(src.lessons)) {
+      src.lessons.forEach(function (l) {
+        if (!l || !str(l.text, 200)) return;
+        var srcRef = l.source && typeof l.source === 'object' ? { type: ['battle', 'bet', 'manual'].indexOf(l.source.type) !== -1 ? l.source.type : 'manual', id: str(l.source.id, 80) } : { type: 'manual', id: '' };
+        out.lessons.push({ id: str(l.id, 80) || uid(), text: str(l.text, 200), area: str(l.area, MAX_NAME) || 'General', pinned: l.pinned === true, at: isFinite(Date.parse(l.at)) ? new Date(Date.parse(l.at)).toISOString() : new Date().toISOString(), source: srcRef });
+      });
+    }
+    if (Array.isArray(src.voice)) {
+      src.voice.forEach(function (n) {
+        if (!n || !str(n.id, 80) || !isFinite(Date.parse(n.at))) return;
+        out.voice.push({ id: str(n.id, 80), title: str(n.title, 120), tag: VOICE_TAGS.some(function (x) { return x[0] === n.tag; }) ? n.tag : 'other', at: new Date(Date.parse(n.at)).toISOString(), duration: Math.max(0, +n.duration || 0), mime: str(n.mime, 60) || 'audio/webm' });
       });
     }
     if (Array.isArray(src.checkins)) {
@@ -299,6 +340,7 @@
     introDone: false,
     proofAll: false,
     view: 'decisions',
+    betsAll: false,
     wonFilter: null
   };
 
@@ -380,6 +422,7 @@
     renderPatterns(v);
     renderHistory(v, opts);
     renderBattles(v);
+    renderRecord(v);
     renderSettings();
     scheduleThumb();
     $('.fab').classList.toggle('is-attn', v.today === 0 && state.categories.length > 0);
@@ -569,7 +612,7 @@
     var el = $('#pulse');
     var line = I.topLine(v.patterns, v.now);
     var q = questionFor(v);
-    var ci = state.settings.privateMode ? '' : checkinHtml(v);
+    var ci = state.settings.privateMode ? '' : checkinHtml(v) + reviewDueHtml(v, true);
     if (!line && !q && !ci) {
       el.hidden = true;
       el.innerHTML = '';
@@ -1150,6 +1193,7 @@
     sheetEl.setAttribute('aria-label', opts.label || 'Panel');
     sheetOnClose = opts.onClose || null;
     sheetBody.innerHTML = '';
+    sheetBody._chips = [];
     build(sheetBody);
     if (!sheetEl.open) {
       sheetEl.showModal();
@@ -2010,6 +2054,7 @@
       danger: true
     }).then(function (ok) {
       if (!ok) return;
+      state.voice.forEach(function (n) { MEDIA.remove(n.id).catch(function () {}); });
       state = defaults();
       ui.historyFilter = null;
       ui.openEntries = Object.create(null);
@@ -2180,10 +2225,10 @@
     }).join('') + '</div>';
   }
 
+  var VIEWS = ['decisions', 'battles', 'record'];
   function applyView() {
     var battles = ui.view === 'battles';
-    $('#view-decisions').hidden = battles;
-    $('#view-battles').hidden = !battles;
+    VIEWS.forEach(function (name) { $('#view-' + name).hidden = ui.view !== name; });
     $$('.tab').forEach(function (t) {
       if (t.dataset.view === ui.view) t.setAttribute('aria-current', 'page');
       else t.removeAttribute('aria-current');
@@ -2454,6 +2499,7 @@
           return '<button type="button" class="area-chip" data-helped="' + h[0] + '" aria-pressed="false">' + esc(h[1]) + '</button>';
         }).join('') + '</div></div>' +
         '<label class="field"><span class="field__label">One line for future you <em>Shown the next time something like this starts</em></span><input class="input" name="note" maxlength="160" placeholder="e.g. It passed. Make the calls, don’t wait."></label>' +
+        '<label class="check"><input type="checkbox" name="asLesson" checked><span><b>Save it as a lesson</b><small>Adds this line to your Lessons in the Record tab.</small></span></label>' +
         '<button class="btn btn--primary btn--lg btn--block" type="submit">Mark it over</button></form>';
       body.onclick = function (e) {
         var s1 = e.target.closest('[data-status]');
@@ -2473,7 +2519,9 @@
       $('form', body).addEventListener('submit', function (e) {
         e.preventDefault();
         var note = fld(e.target, 'note').value.trim();
-        commit(function () {
+        var asLesson = fld(e.target, 'asLesson').checked && note;
+        commit(function (st) {
+          if (asLesson) st.lessons.push({ id: uid(), text: note, area: b.area, pinned: false, at: new Date().toISOString(), source: { type: 'battle', id: b.id } });
           b.status = draft.status;
           b.endedAt = new Date().toISOString();
           b.helped = draft.helped.slice();
@@ -2530,12 +2578,413 @@
   }
 
   function setView(view, push) {
-    ui.view = view === 'battles' ? 'battles' : 'decisions';
+    ui.view = VIEWS.indexOf(view) !== -1 ? view : 'decisions';
     applyView();
     if (push && location.hash !== '#' + ui.view) {
       try { history.replaceState(null, '', '#' + ui.view); } catch (e) { location.hash = ui.view; }
     }
     window.scrollTo(0, 0);
+  }
+
+
+  // ── Record: Big Bets, Firsts, Lessons, Voice notes ─────────────────────
+  function reviewDueHtml(v, compact) {
+    var due = RC.dueReviews(state.bets, v.now);
+    if (!due.length) return '';
+    var b = due[0];
+    var n = RC.nextReview(b, v.now);
+    return '<div class="pulse__ask review-row">' +
+      '<p><b>' + n.months + '-month review:</b> “' + esc(b.title) + '”. <span>Was it the right call?</span>' + (due.length > 1 ? ' <small>+' + (due.length - 1) + ' more</small>' : '') + '</p>' +
+      '<div class="pulse__answers"><button type="button" class="chip" data-action="bet-review" data-id="' + b.id + '">Review now</button></div></div>';
+  }
+
+  function renderRecord(v) {
+    var priv = state.settings.privateMode;
+    var due = RC.dueReviews(state.bets, v.now);
+    var cnt = $('#tab-record-count');
+    cnt.hidden = priv || !due.length;
+    cnt.textContent = due.length;
+    $('#record-body').hidden = priv;
+    $('#record-private').hidden = !priv;
+    var j = RC.judgment(state.bets);
+    $('#record-stats').innerHTML = priv ? '<div><dt>Record</dt><dd>—</dd></div>' :
+      '<div><dt>Big bets</dt><dd>' + state.bets.length + '</dd></div>' +
+      '<div><dt>Firsts</dt><dd>' + state.firsts.length + '</dd></div>' +
+      '<div><dt>Lessons</dt><dd>' + state.lessons.length + '</dd></div>' +
+      '<div><dt>Voice notes</dt><dd>' + state.voice.length + '</dd></div>';
+    if (priv) return;
+
+    $('#reviews-due').innerHTML = due.length ? '<div class="pulse">' + reviewDueHtml(v) + '</div>' : '';
+
+    // Judgment
+    $('#judgment').innerHTML = j.reviewed ? '<div class="judge">' +
+      '<div class="judge__big"><b>' + Math.round(j.rate * 100) + '%</b><span>right calls</span></div>' +
+      '<div class="judge__bar"><i class="r" style="flex:' + j.right + '"></i><i class="m" style="flex:' + j.mixed + '"></i><i class="w" style="flex:' + j.wrong + '"></i></div>' +
+      '<p>' + j.right + ' right · ' + j.mixed + ' mixed · ' + j.wrong + ' wrong, out of ' + j.reviewed + ' reviewed.' +
+      (j.confRight !== null && j.confWrong !== null ? ' When you were right you felt ' + j.confRight.toFixed(1) + '/5 sure; when wrong, ' + j.confWrong.toFixed(1) + '/5.' + (j.confWrong >= j.confRight ? ' Your confidence isn’t a good guide yet.' : '') : '') + '</p></div>' : '';
+
+    // Bets
+    var bets = state.bets.slice().sort(function (a, b) { return Date.parse(b.madeAt) - Date.parse(a.madeAt); });
+    var shownBets = ui.betsAll ? bets : bets.slice(0, 6);
+    $('#bets-list').innerHTML = bets.length ? '<div class="bets">' + shownBets.map(function (b) {
+      var n = RC.nextReview(b, v.now);
+      var lv = RC.latestVerdict(b);
+      return '<button type="button" class="bet" data-action="bet-open" data-id="' + b.id + '">' +
+        '<span class="bet__top"><span class="fight__area">' + esc(b.area) + ' · ' + esc(fmtDate(b.madeAt)) + '</span>' + (lv ? '<span class="verdict verdict--' + lv + '">' + RC.VERDICTS[lv].short + '</span>' : '') + '</span>' +
+        '<span class="bet__title">' + esc(b.title) + '</span>' +
+        (b.expect ? '<span class="bet__expect">Expected: ' + esc(b.expect) + '</span>' : '') +
+        '<span class="bet__next' + (n && n.due ? ' is-due' : '') + '">' + (n ? (n.due ? n.months + '-month review is due' : n.months + '-month review in ' + n.inDays + ' ' + plural(n.inDays, 'day')) : 'All reviews done') + '</span>' +
+        '</button>';
+    }).join('') + '</div>' + (bets.length > 6 ? '<button type="button" class="btn btn--soft btn--block" data-action="bets-toggle">' + (ui.betsAll ? 'Show fewer' : 'Show all ' + bets.length) + '</button>' : '')
+      : '<p class="chart-empty">No big bets yet. The next time you make a call that changes your direction, log it here before you know how it turns out.</p>';
+
+    // Firsts
+    var groups = RC.firstsByYear(state.firsts);
+    $('#firsts-list').innerHTML = groups.length ? groups.map(function (g) {
+      return '<h3 class="day-head">' + g.year + ' <b>' + g.items.length + '</b></h3><ul class="firsts">' + g.items.map(function (f) {
+        return '<li><button type="button" class="first" data-action="first-edit" data-id="' + f.id + '"><span class="first__date">' + esc(parseYmd(f.date).toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' })) + '</span>' +
+          '<span class="first__main"><b>' + esc(f.title) + '</b>' + (f.area || f.note ? '<small>' + esc([f.area, f.note].filter(Boolean).join(' · ')) + '</small>' : '') + '</span></button></li>';
+      }).join('') + '</ul>';
+    }).join('') : '<p class="chart-empty">First client, first $1,000 month, first 100 kg bench, first time you said no to something big. Log them; they only happen once.</p>';
+
+    // Voice
+    var notes = state.voice.slice().sort(function (a, b) { return Date.parse(b.at) - Date.parse(a.at); });
+    $('#voice-list').innerHTML = !MEDIA.supported() ? '<p class="chart-empty">This browser can’t record audio. Open the app in Chrome or Edge.</p>' :
+      notes.length ? '<ul class="voices">' + notes.map(function (n) {
+        var tag = VOICE_TAGS.filter(function (x) { return x[0] === n.tag; })[0];
+        return '<li class="voice" data-id="' + n.id + '"><button type="button" class="voice__play" data-action="voice-play" data-id="' + n.id + '" aria-label="Play">▶</button>' +
+          '<span class="voice__main"><b>' + esc(n.title || (tag ? tag[1] : 'Voice note')) + '</b><small>' + esc(fmtDate(n.at)) + ' · ' + esc(fmtTime(new Date(n.at))) + ' · ' + RC.fmtDuration(n.duration) + (tag ? ' · ' + tag[1] : '') + '</small></span>' +
+          '<button type="button" class="icon-btn" data-action="voice-download" data-id="' + n.id + '" aria-label="Download">' + icon('download') + '</button>' +
+          '<button type="button" class="icon-btn" data-action="voice-delete" data-id="' + n.id + '" aria-label="Delete">' + icon('trash') + '</button></li>';
+      }).join('') + '</ul>' : '<p class="chart-empty">No voice notes yet. Press V and talk for a minute.</p>';
+
+    // Lessons
+    var lv2 = RC.lessonsView(state.lessons);
+    function lessonLi(l) {
+      return '<li class="lesson' + (l.pinned ? ' is-pinned' : '') + '"><button type="button" class="lesson__pin" data-action="lesson-pin" data-id="' + l.id + '" aria-label="' + (l.pinned ? 'Unpin' : 'Pin') + '" title="' + (l.pinned ? 'Unpin' : 'Pin') + '">' + (l.pinned ? '★' : '☆') + '</button>' +
+        '<button type="button" class="lesson__text" data-action="lesson-edit" data-id="' + l.id + '">' + esc(l.text) + '<small>' + esc(l.area) + (l.source.type !== 'manual' ? ' · from a ' + l.source.type : '') + ' · ' + esc(fmtDate(l.at)) + '</small></button></li>';
+    }
+    $('#lessons-list').innerHTML = state.lessons.length ?
+      (lv2.pinned.length ? '<div class="pinned"><p class="proof__label">Pinned · ' + lv2.pinned.length + ' of ' + RC.MAX_PINNED + '</p><ol class="lessons lessons--pinned">' + lv2.pinned.map(lessonLi).join('') + '</ol></div>' : '') +
+      '<div class="lesson-areas">' + lv2.areas.map(function (a) { return '<div><p class="proof__label">' + esc(a.area) + '</p><ul class="lessons">' + a.items.map(lessonLi).join('') + '</ul></div>'; }).join('') + '</div>'
+      : '<p class="chart-empty">No lessons yet. When you close a battle or review a bet, the line you write can become a lesson with one tap.</p>';
+  }
+
+  function areaChips(selected) {
+    return '<div class="suggest">' + areaOptions().map(function (a) {
+      return '<button type="button" class="area-chip" data-area="' + esc(a) + '" aria-pressed="' + (selected === a) + '">' + esc(a) + '</button>';
+    }).join('') + '</div>';
+  }
+
+  /** Single-choice chip groups inside the current sheet (reset every time a sheet opens). */
+  function bindChips(body, attr, onPick) {
+    body._chips = body._chips || [];
+    body._chips.push({ attr: attr, onPick: onPick });
+    if (body._chipsBound) return;
+    body._chipsBound = true;
+    body.addEventListener('click', function (e) {
+      (body._chips || []).forEach(function (g) {
+        var c = e.target.closest('[' + g.attr + ']');
+        if (!c || !body.contains(c)) return;
+        $$('[' + g.attr + ']', body).forEach(function (x) { x.setAttribute('aria-pressed', String(x === c)); });
+        g.onPick(c.getAttribute(g.attr));
+      });
+    });
+  }
+
+  // Big bets
+  function openBetEditor(opts) {
+    opts = opts || {};
+    var editing = opts.id ? state.bets.find(function (b) { return b.id === opts.id; }) : null;
+    var d = { area: editing ? editing.area : null, confidence: editing ? editing.confidence : 3 };
+    openSheet(function (body) {
+      body.innerHTML = sheetHead(editing ? 'Edit big bet' : 'New big bet', editing ? '' : 'Write it down before you know how it turns out.') +
+        '<form class="add-form" novalidate autocomplete="off">' +
+        '<label class="field"><span class="field__label">The decision</span><input class="input" name="title" maxlength="140" placeholder="e.g. Quit my job to go full-time on the agency" value="' + esc(editing ? editing.title : '') + '"></label>' +
+        '<div class="field"><span class="field__label">Area</span>' + areaChips(d.area) + '</div>' +
+        '<label class="field"><span class="field__label">Why are you doing it?</span><textarea class="input" name="why" rows="2" maxlength="400" placeholder="The honest reason">' + esc(editing ? editing.why : '') + '</textarea></label>' +
+        '<label class="field"><span class="field__label">What do you expect to happen? <em>Be specific, so you can check later</em></span><textarea class="input" name="expect" rows="2" maxlength="400" placeholder="e.g. Replace my salary within 6 months">' + esc(editing ? editing.expect : '') + '</textarea></label>' +
+        '<label class="field"><span class="field__label">At 80, would you regret not doing it? <em>Bezos’ test</em></span><input class="input" name="regret" maxlength="300" placeholder="e.g. Yes. I’d always wonder." value="' + esc(editing ? editing.regret : '') + '"></label>' +
+        '<div class="field"><span class="field__label">How sure are you? <em>1 coin flip · 5 certain</em></span><div class="weights">' + [1, 2, 3, 4, 5].map(function (n) { return '<button type="button" class="weight" data-conf="' + n + '" aria-pressed="' + (d.confidence === n) + '">' + n + '</button>'; }).join('') + '</div></div>' +
+        '<button class="btn btn--primary btn--lg btn--block" type="submit">' + (editing ? 'Save' : 'Log the bet') + '</button>' +
+        (editing ? '<button class="btn btn--danger-soft btn--block" type="button" data-sheet="delete">Delete</button>' : '') + '</form>';
+      bindChips(body, 'data-area', function (a) { d.area = a; });
+      bindChips(body, 'data-conf', function (n) { d.confidence = +n; });
+      body.onclick = function (e) {
+        var sh = e.target.closest('[data-sheet="delete"]');
+        if (!sh) return;
+        confirmDialog({ title: 'Delete this big bet?', text: '“' + editing.title + '” and its reviews will be removed.', okLabel: 'Delete', danger: true }).then(function (ok) {
+          if (!ok) return;
+          commit(function (st) { st.bets = st.bets.filter(function (b) { return b.id !== editing.id; }); });
+          closeSheet();
+        });
+      };
+      var form = $('form', body);
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var title = fld(form, 'title');
+        if (!title.value.trim()) { title.classList.add('is-invalid'); title.focus(); return; }
+        var data = { title: title.value.trim(), area: d.area || 'Other', why: fld(form, 'why').value.trim(), expect: fld(form, 'expect').value.trim(), regret: fld(form, 'regret').value.trim(), confidence: d.confidence };
+        if (editing) commit(function () { Object.assign(editing, data); });
+        else commit(function (st) { st.bets.push(Object.assign({ id: uid(), madeAt: new Date().toISOString(), reviews: [] }, data)); });
+        closeSheet();
+        toast(editing ? 'Saved' : 'Big bet logged.', { sub: editing ? '' : 'You’ll review it in 3 months.' });
+      });
+    }, { className: 'sheet--battle', label: 'Big bet', focus: function () { if (!editing) $('input[name="title"]', sheetBody).focus({ preventScroll: true }); } });
+  }
+
+  function openBet(id) {
+    var b = state.bets.find(function (x) { return x.id === id; });
+    if (!b) return;
+    var n = RC.nextReview(b);
+    openSheet(function (body) {
+      var age = RC.daysSince(b.madeAt);
+      body.innerHTML = sheetHead(esc(b.title), esc(b.area) + ' · made ' + esc(fmtDate(b.madeAt)) + ' · ' + age + ' ' + plural(age, 'day') + ' ago', { eyebrow: 'Big bet' }) +
+        '<dl class="bet-facts">' +
+        (b.why ? '<div><dt>Why</dt><dd>' + esc(b.why) + '</dd></div>' : '') +
+        (b.expect ? '<div><dt>What you expected</dt><dd>' + esc(b.expect) + '</dd></div>' : '') +
+        (b.regret ? '<div><dt>At 80</dt><dd>' + esc(b.regret) + '</dd></div>' : '') +
+        '<div><dt>How sure you were</dt><dd>' + weightSquares(b.confidence) + ' ' + b.confidence + '/5</dd></div></dl>' +
+        '<div class="sheet__section"><p class="sheet__section-title"><span>Reviews</span></p><ol class="reviews">' + RC.CHECKPOINTS.map(function (c) {
+          var r = b.reviews.filter(function (x) { return x.checkpoint === c.months; })[0];
+          return '<li class="' + (r ? 'is-done' : '') + '"><span class="reviews__cp">' + c.months + ' mo</span>' + (r
+            ? '<span><span class="verdict verdict--' + r.verdict + '">' + RC.VERDICTS[r.verdict].label + '</span>' + (r.note ? ' ' + esc(r.note) : '') + '</span>'
+            : '<span class="muted">' + (n && n.months === c.months ? (n.due ? 'Due now' : 'In ' + n.inDays + ' days') : 'Later') + '</span>') + '</li>';
+        }).join('') + '</ol></div>' +
+        '<div class="sheet__actions">' + (n && n.due ? '<button type="button" class="btn btn--primary btn--lg btn--block" data-sheet="review">Review now</button>' : '') +
+        '<button type="button" class="btn btn--soft btn--block" data-sheet="edit">Edit</button></div>';
+      body.onclick = function (e) {
+        var a = e.target.closest('[data-sheet]');
+        if (!a) return;
+        if (a.dataset.sheet === 'review') openBetReview(b.id);
+        else if (a.dataset.sheet === 'edit') openBetEditor({ id: b.id });
+      };
+    }, { className: 'sheet--battle', label: 'Big bet' });
+  }
+
+  function openBetReview(id) {
+    var b = state.bets.find(function (x) { return x.id === id; });
+    if (!b) return;
+    var n = RC.nextReview(b);
+    if (!n) return openBet(id);
+    var verdict = null;
+    openSheet(function (body) {
+      body.innerHTML = sheetHead(n.months + '-month review', esc(b.title), { eyebrow: 'Big bet' }) +
+        (b.expect ? '<div class="been"><p class="been__title">What you expected</p><p class="been__item">' + esc(b.expect) + '</p>' + (b.why ? '<p class="been__item">Why: ' + esc(b.why) + '</p>' : '') + '</div>' : '') +
+        '<form class="add-form" novalidate autocomplete="off">' +
+        '<div class="field"><span class="field__label">Looking back, was it the right call?</span><div class="suggest">' + Object.keys(RC.VERDICTS).map(function (k) {
+          return '<button type="button" class="area-chip" data-verdict="' + k + '" aria-pressed="false">' + RC.VERDICTS[k].label + '</button>';
+        }).join('') + '</div></div>' +
+        '<label class="field"><span class="field__label">What did you get right or wrong?</span><input class="input" name="note" maxlength="300" placeholder="e.g. Right move, but I underestimated how long sales take"></label>' +
+        '<label class="check"><input type="checkbox" name="asLesson" checked><span><b>Save it as a lesson</b><small>Adds this line to your Lessons.</small></span></label>' +
+        '<button class="btn btn--primary btn--lg btn--block" type="submit">Save review</button></form>';
+      bindChips(body, 'data-verdict', function (k) { verdict = k; });
+      var form = $('form', body);
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (!verdict) return toast('Pick right, mixed or wrong first.', { tone: 'error' });
+        var note = fld(form, 'note').value.trim();
+        var asLesson = fld(form, 'asLesson').checked && note;
+        commit(function (st) {
+          b.reviews.push({ at: new Date().toISOString(), checkpoint: n.months, verdict: verdict, note: note });
+          if (asLesson) st.lessons.push({ id: uid(), text: note, area: b.area, pinned: false, at: new Date().toISOString(), source: { type: 'bet', id: b.id } });
+        });
+        closeSheet();
+        var next = RC.nextReview(b);
+        toast('Review saved', { sub: next ? 'Next one at ' + next.months + ' months.' : 'All reviews done for this bet.' });
+      });
+    }, { className: 'sheet--battle', label: 'Review big bet' });
+  }
+
+  // Firsts
+  function openFirstEditor(opts) {
+    opts = opts || {};
+    var editing = opts.id ? state.firsts.find(function (f) { return f.id === opts.id; }) : null;
+    var d = { area: editing ? editing.area : null };
+    openSheet(function (body) {
+      body.innerHTML = sheetHead(editing ? 'Edit first' : 'New first', editing ? '' : 'Something that only happens once.') +
+        '<form class="add-form" novalidate autocomplete="off">' +
+        '<label class="field"><span class="field__label">The first</span><input class="input" name="title" maxlength="140" placeholder="e.g. First $1,000 month" value="' + esc(editing ? editing.title : '') + '"></label>' +
+        '<label class="field"><span class="field__label">When <em>Today by default</em></span><input class="input" type="date" name="date" value="' + (editing ? editing.date : ymd(new Date())) + '" max="' + ymd(new Date()) + '"></label>' +
+        '<div class="field"><span class="field__label">Area <em>Optional</em></span>' + areaChips(d.area) + '</div>' +
+        '<label class="field"><span class="field__label">Note <em>Optional</em></span><input class="input" name="note" maxlength="300" placeholder="How it felt, who was there" value="' + esc(editing ? editing.note : '') + '"></label>' +
+        '<button class="btn btn--primary btn--lg btn--block" type="submit">' + (editing ? 'Save' : 'Log it') + '</button>' +
+        (editing ? '<button class="btn btn--danger-soft btn--block" type="button" data-sheet="delete">Delete</button>' : '') + '</form>';
+      bindChips(body, 'data-area', function (a) { d.area = a; });
+      body.onclick = function (e) {
+        if (!e.target.closest('[data-sheet="delete"]')) return;
+        commit(function (st) { st.firsts = st.firsts.filter(function (f) { return f.id !== editing.id; }); });
+        closeSheet();
+        toast('Deleted');
+      };
+      var form = $('form', body);
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var title = fld(form, 'title');
+        if (!title.value.trim()) { title.classList.add('is-invalid'); title.focus(); return; }
+        var date = parseYmd(fld(form, 'date').value) ? fld(form, 'date').value : ymd(new Date());
+        var data = { title: title.value.trim(), date: date, area: d.area && d.area !== 'Other' ? d.area : '', note: fld(form, 'note').value.trim() };
+        if (editing) commit(function () { Object.assign(editing, data); });
+        else commit(function (st) { st.firsts.push(Object.assign({ id: uid() }, data)); });
+        closeSheet();
+        toast(editing ? 'Saved' : 'First logged. It only happens once.');
+      });
+    }, { className: 'sheet--battle', label: 'First', focus: function () { if (!editing) $('input[name="title"]', sheetBody).focus({ preventScroll: true }); } });
+  }
+
+  // Lessons
+  function openLessonEditor(opts) {
+    opts = opts || {};
+    var editing = opts.id ? state.lessons.find(function (l) { return l.id === opts.id; }) : null;
+    var d = { area: editing ? editing.area : null };
+    openSheet(function (body) {
+      body.innerHTML = sheetHead(editing ? 'Edit lesson' : 'New lesson', 'One line you want to live by.') +
+        '<form class="add-form" novalidate autocomplete="off">' +
+        '<label class="field"><span class="field__label">The lesson</span><input class="input" name="text" maxlength="200" placeholder="e.g. Invoice the same day" value="' + esc(editing ? editing.text : '') + '"></label>' +
+        '<div class="field"><span class="field__label">Area</span>' + areaChips(d.area) + '</div>' +
+        '<button class="btn btn--primary btn--lg btn--block" type="submit">Save lesson</button>' +
+        (editing ? '<button class="btn btn--danger-soft btn--block" type="button" data-sheet="delete">Delete</button>' : '') + '</form>';
+      bindChips(body, 'data-area', function (a) { d.area = a; });
+      body.onclick = function (e) {
+        if (!e.target.closest('[data-sheet="delete"]')) return;
+        commit(function (st) { st.lessons = st.lessons.filter(function (l) { return l.id !== editing.id; }); });
+        closeSheet();
+        toast('Deleted');
+      };
+      var form = $('form', body);
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var text = fld(form, 'text');
+        if (!text.value.trim()) { text.classList.add('is-invalid'); text.focus(); return; }
+        var area = d.area && d.area !== 'Other' ? d.area : 'General';
+        if (editing) commit(function () { editing.text = text.value.trim(); editing.area = area; });
+        else commit(function (st) { st.lessons.push({ id: uid(), text: text.value.trim(), area: area, pinned: false, at: new Date().toISOString(), source: { type: 'manual', id: '' } }); });
+        closeSheet();
+        toast('Lesson saved');
+      });
+    }, { className: 'sheet--battle', label: 'Lesson', focus: function () { if (!editing) $('input[name="text"]', sheetBody).focus({ preventScroll: true }); } });
+  }
+
+  function toggleLessonPin(id) {
+    var l = state.lessons.find(function (x) { return x.id === id; });
+    if (!l) return;
+    if (!l.pinned && state.lessons.filter(function (x) { return x.pinned; }).length >= RC.MAX_PINNED) return toast('You can pin up to ' + RC.MAX_PINNED + '. Unpin one first.', { tone: 'error' });
+    commit(function () { l.pinned = !l.pinned; });
+  }
+
+  // Voice notes
+  var playing = null;
+  function playVoice(id, btn) {
+    if (playing) {
+      playing.audio.pause();
+      URL.revokeObjectURL(playing.url);
+      var was = playing.id;
+      if (playing.btn) playing.btn.textContent = '▶';
+      playing = null;
+      if (was === id) return;
+    }
+    MEDIA.get(id).then(function (blob) {
+      if (!blob) return toast('That recording is missing on this computer.', { tone: 'error' });
+      var url = URL.createObjectURL(blob);
+      var audio = new Audio(url);
+      playing = { id: id, audio: audio, url: url, btn: btn };
+      btn.textContent = '■';
+      audio.onended = function () { btn.textContent = '▶'; URL.revokeObjectURL(url); playing = null; };
+      audio.play().catch(function () { toast('Couldn’t play it.', { tone: 'error' }); });
+    });
+  }
+
+  function voiceExt(mime) { return /mp4|aac/.test(mime) ? 'm4a' : /ogg/.test(mime) ? 'ogg' : 'webm'; }
+
+  function openRecorder() {
+    if (!MEDIA.supported()) return toast('This browser can’t record audio. Open the app in Chrome or Edge.', { tone: 'error' });
+    var rec = null, stream = null, chunks = [], started = 0, timer = 0, blob = null, duration = 0, tag = 'other';
+    var LIMIT = 180;
+    function cleanup() {
+      clearInterval(timer);
+      if (rec && rec.state !== 'inactive') try { rec.stop(); } catch (e) {}
+      if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+      stream = null;
+    }
+    openSheet(function (body) {
+      body.innerHTML = sheetHead('Voice note', 'Talk for a minute. It stays on this computer.') +
+        '<div class="recorder"><button type="button" class="rec-btn" id="rec-btn" aria-label="Start recording"><span></span></button>' +
+        '<p class="rec-time" id="rec-time">0:00</p><p class="rec-hint" id="rec-hint">Tap to start. Up to 3 minutes.</p></div>' +
+        '<form class="add-form" id="rec-form" hidden novalidate autocomplete="off">' +
+        '<audio id="rec-preview" controls></audio>' +
+        '<label class="field"><span class="field__label">Title <em>Optional</em></span><input class="input" name="title" maxlength="120" placeholder="e.g. Night before quitting"></label>' +
+        '<div class="field"><span class="field__label">What kind of day?</span><div class="suggest">' + VOICE_TAGS.map(function (t) { return '<button type="button" class="area-chip" data-tag="' + t[0] + '" aria-pressed="' + (t[0] === 'other') + '">' + t[1] + '</button>'; }).join('') + '</div></div>' +
+        '<div class="confirm__actions"><button type="button" class="btn btn--soft" id="rec-discard">Discard</button><button type="submit" class="btn btn--primary">Save</button></div></form>';
+      bindChips(body, 'data-tag', function (k) { tag = k; });
+      var btn = $('#rec-btn', body), time = $('#rec-time', body), hint = $('#rec-hint', body), form = $('#rec-form', body);
+      function stop() {
+        if (rec && rec.state === 'recording') rec.stop();
+      }
+      btn.addEventListener('click', function () {
+        if (rec && rec.state === 'recording') return stop();
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s2) {
+          stream = s2;
+          chunks = [];
+          rec = new MediaRecorder(stream);
+          rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+          rec.onstop = function () {
+            clearInterval(timer);
+            duration = (Date.now() - started) / 1000;
+            if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+            stream = null;
+            blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+            btn.classList.remove('is-rec');
+            btn.hidden = true;
+            hint.textContent = 'Listen back, then save.';
+            $('#rec-preview', body).src = URL.createObjectURL(blob);
+            form.hidden = false;
+          };
+          rec.start(250);
+          started = Date.now();
+          btn.classList.add('is-rec');
+          btn.setAttribute('aria-label', 'Stop recording');
+          hint.textContent = 'Recording. Tap to stop.';
+          timer = setInterval(function () {
+            var sec = (Date.now() - started) / 1000;
+            time.textContent = RC.fmtDuration(sec);
+            if (sec >= LIMIT) stop();
+          }, 200);
+        }).catch(function () {
+          hint.textContent = 'Microphone access was blocked. Allow it in the browser’s address bar, then try again.';
+        });
+      });
+      $('#rec-discard', body).addEventListener('click', function () { cleanup(); closeSheet(); });
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (!blob) return;
+        var id = uid();
+        var meta = { id: id, title: fld(form, 'title').value.trim(), tag: tag, at: new Date().toISOString(), duration: duration, mime: blob.type || 'audio/webm' };
+        MEDIA.put(id, blob).then(function () {
+          commit(function (st) { st.voice.push(meta); });
+          closeSheet();
+          toast('Voice note saved', { sub: RC.fmtDuration(duration) + ' · only on this computer' });
+        }).catch(function () { toast('Couldn’t save the recording.', { tone: 'error' }); });
+      });
+    }, { className: 'sheet--battle', label: 'Voice note', onClose: cleanup });
+  }
+
+  function deleteVoice(id) {
+    var n = state.voice.find(function (x) { return x.id === id; });
+    if (!n) return;
+    confirmDialog({ title: 'Delete this voice note?', text: 'The recording is removed from this computer for good.', okLabel: 'Delete', danger: true }).then(function (ok) {
+      if (!ok) return;
+      MEDIA.remove(id).catch(function () {});
+      commit(function (st) { st.voice = st.voice.filter(function (x) { return x.id !== id; }); });
+      toast('Deleted');
+    });
+  }
+
+  function downloadVoice(id) {
+    var n = state.voice.find(function (x) { return x.id === id; });
+    MEDIA.get(id).then(function (blob) {
+      if (!blob) return toast('That recording is missing on this computer.', { tone: 'error' });
+      downloadBlob(blob, '1000-decisions-voice-' + ymd(new Date(n.at)) + '.' + voiceExt(n.mime));
+    });
   }
 
   // ── Global events ──────────────────────────────────────────────────────
@@ -2575,6 +3024,19 @@
       case 'delete-decision': confirmDelete(el.dataset.id); break;
       case 'log-category': openAdd({ categoryName: el.dataset.name }); break;
       case 'battle-new': openBattleEditor(); break;
+      case 'bet-new': openBetEditor(); break;
+      case 'bet-open': openBet(el.dataset.id); break;
+      case 'bet-review': openBetReview(el.dataset.id); break;
+      case 'bets-toggle': ui.betsAll = !ui.betsAll; render(); break;
+      case 'first-new': openFirstEditor(); break;
+      case 'first-edit': openFirstEditor({ id: el.dataset.id }); break;
+      case 'lesson-new': openLessonEditor(); break;
+      case 'lesson-edit': openLessonEditor({ id: el.dataset.id }); break;
+      case 'lesson-pin': toggleLessonPin(el.dataset.id); break;
+      case 'voice-new': openRecorder(); break;
+      case 'voice-play': playVoice(el.dataset.id, el); break;
+      case 'voice-download': downloadVoice(el.dataset.id); break;
+      case 'voice-delete': deleteVoice(el.dataset.id); break;
       case 'battle-open': openBattleDetail(el.dataset.id); break;
       case 'battle-update': openBattleUpdate(el.dataset.id); break;
       case 'battle-close': openBattleClose(el.dataset.id); break;
@@ -2588,7 +3050,7 @@
         break;
       case 'private-toggle':
         commit(function (s) { s.settings.privateMode = !s.settings.privateMode; });
-        toast(state.settings.privateMode ? 'Private mode on. Battles are hidden.' : 'Private mode off');
+        toast(state.settings.privateMode ? 'Private mode on. Battles and Record are hidden.' : 'Private mode off');
         break;
       case 'proof-toggle':
         ui.proofAll = !ui.proofAll;
@@ -2651,6 +3113,11 @@
     if (sheetEl.open || confirmEl.open) return;
     var tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+    if ((e.key === 'v' || e.key === 'V') && !state.settings.privateMode) {
+      e.preventDefault();
+      openRecorder();
+      return;
+    }
     if (e.key === 'b' || e.key === 'B') {
       e.preventDefault();
       if (ui.view !== 'battles') setView('battles', true);
@@ -2701,9 +3168,9 @@
 
   window.addEventListener('hashchange', function () {
     var h = location.hash.replace('#', '');
-    if (h === 'battles' || h === 'decisions') setView(h, false);
+    if (VIEWS.indexOf(h) !== -1) setView(h, false);
   });
-  ui.view = location.hash === '#battles' ? 'battles' : 'decisions';
+  ui.view = VIEWS.indexOf(location.hash.replace('#', '')) !== -1 ? location.hash.replace('#', '') : 'decisions';
   applyView();
 
   initReorder();
